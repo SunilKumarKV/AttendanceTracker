@@ -16,4 +16,11 @@ export const env = {
   refreshTokenExpiresInDays: toNumber(process.env.REFRESH_TOKEN_EXPIRES_IN_DAYS, 7),
   nodeEnv: process.env.NODE_ENV ?? 'development',
   port: toNumber(process.env.PORT, 5000),
+  smtp: {
+    host: process.env.SMTP_HOST ?? '',
+    port: toNumber(process.env.SMTP_PORT, 587),
+    user: process.env.SMTP_USER ?? '',
+    pass: process.env.SMTP_PASS ?? '',
+  },
+  supportEmail: process.env.SUPPORT_EMAIL ?? 'support@attendancetracker.local',
 };

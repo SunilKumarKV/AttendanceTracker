@@ -1,258 +1,163 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  Search, 
-  Download, 
-  Calendar as CalendarIcon, 
-  AlertTriangle, 
-  AlertCircle, 
-  FileText, 
-  CheckCircle2, 
-  XCircle,
+import React, { useEffect, useState } from 'react';
+import {
+  AlertCircle,
+  AlertTriangle,
+  Calendar as CalendarIcon,
+  CheckCircle2,
+  Download,
+  FileText,
+  Inbox,
   Loader2,
-  Inbox
+  Mail,
+  MessageSquare,
+  Search,
+  Send,
+  XCircle,
 } from 'lucide-react';
-import { toast, Toaster } from 'sonner';
 import Papa from 'papaparse';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-import { WEBHOOK_URL } from '@/src/config';
+import { toast, Toaster } from 'sonner';
+import { getNotificationLogs, NotificationFilters, NotificationLog, sendTestNotification } from '../api/notifications';
+import { ErrorState } from './common';
 
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
-
-interface Notification {
-  id: string;
-  timestamp: string;
-  studentName: string;
-  rollNo: string;
-  attendancePercentage: number;
-  message: string;
-  type: 'Warning' | 'Critical' | 'Monthly Report';
-  status: 'Delivered' | 'Failed';
-}
+const statusOptions = ['All', 'Delivered', 'Skipped', 'Failed'];
+const typeOptions = ['All', 'Absent Alert', 'Low Attendance', 'Monthly Report'];
+const channelOptions = ['All', 'email', 'sms', 'whatsapp'];
 
 export const Notifications: React.FC = () => {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<NotificationLog[]>([]);
+  const [filters, setFilters] = useState<NotificationFilters>({ page: 1, pageSize: 50 });
   const [loading, setLoading] = useState(true);
-  const [filterType, setFilterType] = useState<'All' | 'Warning' | 'Critical' | 'Monthly Report'>('All');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [error, setError] = useState('');
+  const [sendingTest, setSendingTest] = useState(false);
 
-  const fetchNotifications = async () => {
+  const loadNotifications = async (nextFilters = filters) => {
     setLoading(true);
+    setError('');
     try {
-      const response = await fetch(WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'getNotifications' })
-      });
-
-      if (!response.ok) throw new Error('Failed to fetch notifications');
-
-      const data = await response.json();
-      // Assuming data is an array of notifications
-      setNotifications(Array.isArray(data) ? data : (data.notifications || []));
+      const response = await getNotificationLogs(nextFilters);
+      setNotifications(response.data.items);
     } catch (err) {
-      console.error('Error fetching notifications:', err);
-      toast.error('Could not load notification history.');
-      
-      // Mock data for demonstration
-      setNotifications([
-        {
-          id: '1',
-          timestamp: '2026-03-26T10:30:00Z',
-          studentName: 'Jane Smith',
-          rollNo: 'CS102',
-          attendancePercentage: 65,
-          message: 'Dear Parent, Jane Smith\'s attendance is 65%, which is below the 75% threshold. Please ensure regular attendance.',
-          type: 'Warning',
-          status: 'Delivered'
-        },
-        {
-          id: '2',
-          timestamp: '2026-03-26T09:15:00Z',
-          studentName: 'Emma Watson',
-          rollNo: 'CS106',
-          attendancePercentage: 58,
-          message: 'CRITICAL ALERT: Emma Watson\'s attendance has dropped to 58%. Immediate action required to avoid academic penalties.',
-          type: 'Critical',
-          status: 'Delivered'
-        },
-        {
-          id: '3',
-          timestamp: '2026-03-25T16:45:00Z',
-          studentName: 'Sarah Lee',
-          rollNo: 'CS104',
-          attendancePercentage: 70,
-          message: 'Monthly Attendance Report: Sarah Lee has maintained 70% attendance for the month of March.',
-          type: 'Monthly Report',
-          status: 'Delivered'
-        },
-        {
-          id: '4',
-          timestamp: '2026-03-25T14:20:00Z',
-          studentName: 'John Doe',
-          rollNo: 'CS101',
-          attendancePercentage: 85,
-          message: 'Monthly Attendance Report: John Doe has maintained 85% attendance for the month of March.',
-          type: 'Monthly Report',
-          status: 'Failed'
-        }
-      ]);
+      setError(err instanceof Error ? err.message : 'Could not load notification logs.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchNotifications();
+    void loadNotifications();
   }, []);
 
-  const filteredNotifications = useMemo(() => {
-    return notifications.filter(n => {
-      const matchesType = filterType === 'All' || n.type === filterType;
-      const matchesSearch = 
-        (n.studentName?.toLowerCase() || '').includes(searchQuery.toLowerCase()) || 
-        (n.rollNo?.toLowerCase() || '').includes(searchQuery.toLowerCase());
-      
-      const notificationDate = new Date(n.timestamp);
-      const matchesStartDate = !startDate || notificationDate >= new Date(startDate);
-      const matchesEndDate = !endDate || notificationDate <= new Date(endDate + 'T23:59:59');
-
-      return matchesType && matchesSearch && matchesStartDate && matchesEndDate;
-    });
-  }, [notifications, filterType, searchQuery, startDate, endDate]);
+  const updateFilter = (key: keyof NotificationFilters, value: string) => {
+    setFilters((current) => ({ ...current, [key]: value === 'All' || value === '' ? undefined : value, page: 1 }));
+  };
 
   const exportToCSV = () => {
-    if (filteredNotifications.length === 0) {
+    if (notifications.length === 0) {
       toast.error('No data to export');
       return;
     }
-
-    const dataToExport = filteredNotifications.map(n => ({
-      'Date & Time': new Date(n.timestamp).toLocaleString(),
-      'Student Name': n.studentName,
-      'Roll No': n.rollNo,
-      'Attendance %': `${n.attendancePercentage}%`,
-      'Message': n.message,
-      'Type': n.type,
-      'Status': n.status
-    }));
-
-    const csv = Papa.unparse(dataToExport);
+    const csv = Papa.unparse(notifications.map((item) => ({
+      Date: new Date(item.createdAt).toLocaleString(),
+      Channel: item.channel,
+      Recipient: item.recipient,
+      Subject: item.subject ?? '',
+      Type: item.type,
+      Student: item.studentName,
+      RollNo: item.rollNo,
+      Status: item.status,
+      Message: item.message,
+    })));
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `notifications_export_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `notification_logs_${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
-    toast.success('Exported successfully!');
+    link.remove();
+    URL.revokeObjectURL(url);
   };
 
-  const getTypeBadge = (type: Notification['type']) => {
-    switch (type) {
-      case 'Warning':
-        return <span className="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 w-fit"><AlertTriangle size={12} /> Warning</span>;
-      case 'Critical':
-        return <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 w-fit"><AlertCircle size={12} /> Critical</span>;
-      case 'Monthly Report':
-        return <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 w-fit"><FileText size={12} /> Monthly Report</span>;
+  const sendTest = async () => {
+    setSendingTest(true);
+    try {
+      await sendTestNotification({ channel: 'email', rule: 'low_attendance_alert' });
+      toast.success('Test notification logged.');
+      await loadNotifications();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not send test notification.');
+    } finally {
+      setSendingTest(false);
     }
   };
 
-  const getStatusBadge = (status: Notification['status']) => {
-    if (status === 'Delivered') {
-      return <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 w-fit"><CheckCircle2 size={12} /> Delivered</span>;
-    }
-    return <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 w-fit"><XCircle size={12} /> Failed</span>;
+  const typeBadge = (type: string) => {
+    if (type === 'Absent Alert') return <Badge tone="red" icon={<AlertCircle size={12} />} label="Absent Alert" />;
+    if (type === 'Monthly Report') return <Badge tone="blue" icon={<FileText size={12} />} label="Monthly Report" />;
+    return <Badge tone="amber" icon={<AlertTriangle size={12} />} label="Low Attendance" />;
+  };
+
+  const statusBadge = (status: string) => {
+    if (status === 'Delivered') return <Badge tone="emerald" icon={<CheckCircle2 size={12} />} label="Delivered" />;
+    if (status === 'Skipped') return <Badge tone="slate" icon={<MessageSquare size={12} />} label="Skipped" />;
+    return <Badge tone="red" icon={<XCircle size={12} />} label="Failed" />;
   };
 
   return (
     <div className="max-w-7xl mx-auto pb-12">
       <Toaster position="top-right" />
-      
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
         <div>
-          <h2 className="text-3xl font-bold text-slate-900">Notification History</h2>
-          <p className="text-slate-500 font-medium">Track and monitor all alerts sent to parents and students.</p>
+          <h2 className="text-3xl font-bold text-slate-900">Notification Logs</h2>
+          <p className="text-slate-500 font-medium">Monitor email, SMS, and WhatsApp delivery attempts.</p>
         </div>
-        <button 
-          onClick={exportToCSV}
-          className="flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-slate-900/10 hover:bg-slate-800 transition-all active:scale-95"
-        >
-          <Download size={20} />
-          Export as CSV
-        </button>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm mb-8 space-y-6">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex gap-1 p-1 bg-slate-100 rounded-xl">
-            {(['All', 'Warning', 'Critical', 'Monthly Report'] as const).map((type) => (
-              <button
-                key={type}
-                onClick={() => setFilterType(type)}
-                className={cn(
-                  "px-4 py-2 rounded-lg text-sm font-bold transition-all",
-                  filterType === type ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                )}
-              >
-                {type}
-              </button>
-            ))}
-          </div>
-
-          <div className="h-8 w-px bg-slate-200 hidden md:block" />
-
-          <div className="flex flex-wrap items-center gap-3 flex-1">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input
-                type="text"
-                placeholder="Search student or roll no..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 outline-none transition-all font-medium"
-              />
-            </div>
-            
-            <div className="flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-xl border border-slate-200">
-              <CalendarIcon size={18} className="text-slate-400" />
-              <input 
-                type="date" 
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="bg-transparent outline-none text-sm font-bold text-slate-600"
-              />
-              <span className="text-slate-400 font-bold">to</span>
-              <input 
-                type="date" 
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="bg-transparent outline-none text-sm font-bold text-slate-600"
-              />
-            </div>
-          </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <button onClick={sendTest} disabled={sendingTest} className="flex items-center gap-2 bg-blue-600 text-white px-5 py-3 rounded-2xl font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 disabled:opacity-50">
+            {sendingTest ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+            Send Test
+          </button>
+          <button onClick={exportToCSV} className="flex items-center gap-2 bg-slate-900 text-white px-5 py-3 rounded-2xl font-bold shadow-lg shadow-slate-900/10 hover:bg-slate-800">
+            <Download size={18} />
+            Export CSV
+          </button>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
+      <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="relative md:col-span-2">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input
+              value={filters.search ?? ''}
+              onChange={(event) => updateFilter('search', event.target.value)}
+              placeholder="Search recipient, student, roll no..."
+              className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none font-medium"
+            />
+          </div>
+          <Select value={filters.type ?? 'All'} options={typeOptions} onChange={(value) => updateFilter('type', value)} />
+          <Select value={filters.status ?? 'All'} options={statusOptions} onChange={(value) => updateFilter('status', value)} />
+          <Select value={filters.channel ?? 'All'} options={channelOptions} onChange={(value) => updateFilter('channel', value)} />
+          <DateField value={filters.fromDate ?? ''} onChange={(value) => updateFilter('fromDate', value)} />
+          <DateField value={filters.toDate ?? ''} onChange={(value) => updateFilter('toDate', value)} />
+          <button onClick={() => void loadNotifications(filters)} disabled={loading} className="md:col-span-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50">
+            Apply Filters
+          </button>
+        </div>
+      </div>
+
+      {error && <div className="mb-6"><ErrorState title="Notifications unavailable" message={error} onAction={() => void loadNotifications()} /></div>}
+
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/50 text-slate-400 text-xs font-bold uppercase tracking-widest border-b border-slate-100">
-                <th className="px-6 py-5">Date & Time</th>
+                <th className="px-6 py-5">Date</th>
+                <th className="px-6 py-5">Recipient</th>
                 <th className="px-6 py-5">Student</th>
-                <th className="px-6 py-5">Roll No</th>
-                <th className="px-6 py-5">Attendance</th>
-                <th className="px-6 py-5">Message Sent</th>
+                <th className="px-6 py-5">Channel</th>
+                <th className="px-6 py-5">Message</th>
                 <th className="px-6 py-5">Type</th>
                 <th className="px-6 py-5">Status</th>
               </tr>
@@ -261,78 +166,73 @@ export const Notifications: React.FC = () => {
               {loading ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-20 text-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
-                      <span className="text-slate-400 font-bold">Fetching notification history...</span>
-                    </div>
+                    <Loader2 className="w-10 h-10 text-blue-600 animate-spin mx-auto mb-3" />
+                    <span className="text-slate-400 font-bold">Fetching notification logs...</span>
                   </td>
                 </tr>
-              ) : filteredNotifications.length === 0 ? (
+              ) : notifications.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-20 text-center">
-                    <div className="flex flex-col items-center gap-4 max-w-xs mx-auto">
-                      <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
-                        <Inbox size={40} />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-slate-900 mb-1">No alerts sent yet</h3>
-                        <p className="text-slate-400 font-medium">Alerts will appear here when students fall below the attendance threshold.</p>
-                      </div>
-                    </div>
+                    <Inbox className="w-14 h-14 text-slate-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-bold text-slate-900">No notification logs</h3>
+                    <p className="text-slate-400 font-medium">Delivery attempts will appear here.</p>
                   </td>
                 </tr>
-              ) : (
-                filteredNotifications.map((n) => (
-                  <tr key={n.id} className="hover:bg-slate-50/50 transition-colors group">
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col">
-                        <span className="font-bold text-slate-900">{new Date(n.timestamp).toLocaleDateString()}</span>
-                        <span className="text-xs font-medium text-slate-400">{new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 font-bold text-slate-900">{n.studentName}</td>
-                    <td className="px-6 py-4 font-mono text-sm text-slate-500">{n.rollNo}</td>
-                    <td className="px-6 py-4">
-                      <span className={cn(
-                        "font-bold",
-                        n.attendancePercentage < 60 ? "text-red-600" : "text-amber-600"
-                      )}>
-                        {n.attendancePercentage}%
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 max-w-[240px]">
-                      <div 
-                        className="text-sm text-slate-500 font-medium truncate cursor-help" 
-                        title={n.message}
-                      >
-                        {n.message.length > 60 ? `${n.message.substring(0, 60)}...` : n.message}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">{getTypeBadge(n.type)}</td>
-                    <td className="px-6 py-4">{getStatusBadge(n.status)}</td>
-                  </tr>
-                ))
-              )}
+              ) : notifications.map((item) => (
+                <tr key={item.id} className="hover:bg-slate-50/50">
+                  <td className="px-6 py-4">
+                    <p className="font-bold text-slate-900">{new Date(item.createdAt).toLocaleDateString()}</p>
+                    <p className="text-xs text-slate-400 font-medium">{new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                  </td>
+                  <td className="px-6 py-4">
+                    <p className="font-bold text-slate-900">{item.recipient}</p>
+                    <p className="text-xs text-slate-400">{item.providerRef ?? item.provider ?? 'No provider ref'}</p>
+                  </td>
+                  <td className="px-6 py-4">
+                    <p className="font-bold text-slate-900">{item.studentName || 'General'}</p>
+                    <p className="text-xs font-mono text-slate-400">{item.rollNo || item.className}</p>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="inline-flex items-center gap-2 bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs font-bold uppercase">
+                      <Mail size={12} />
+                      {item.channel}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 max-w-[280px]">
+                    <p title={item.message} className="text-sm text-slate-500 truncate">{item.message}</p>
+                  </td>
+                  <td className="px-6 py-4">{typeBadge(item.type)}</td>
+                  <td className="px-6 py-4">{statusBadge(item.status)}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
-        
-        {!loading && filteredNotifications.length > 0 && (
-          <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
-            <span className="text-sm font-bold text-slate-500 uppercase tracking-widest">
-              Showing {filteredNotifications.length} of {notifications.length} notifications
-            </span>
-            <div className="flex items-center gap-2">
-              <button className="p-2 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-slate-600 disabled:opacity-50" disabled>
-                Previous
-              </button>
-              <button className="p-2 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-slate-600 disabled:opacity-50" disabled>
-                Next
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
+};
+
+const Select: React.FC<{ value: string; options: string[]; onChange: (value: string) => void }> = ({ value, options, onChange }) => (
+  <select value={value} onChange={(event) => onChange(event.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none font-bold text-slate-700 bg-white">
+    {options.map((option) => <option key={option} value={option}>{option}</option>)}
+  </select>
+);
+
+const DateField: React.FC<{ value: string; onChange: (value: string) => void }> = ({ value, onChange }) => (
+  <div className="relative">
+    <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+    <input type="date" value={value} onChange={(event) => onChange(event.target.value)} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none font-bold text-slate-700" />
+  </div>
+);
+
+const Badge: React.FC<{ tone: 'red' | 'blue' | 'amber' | 'emerald' | 'slate'; icon: React.ReactNode; label: string }> = ({ tone, icon, label }) => {
+  const classes = {
+    red: 'bg-red-100 text-red-700',
+    blue: 'bg-blue-100 text-blue-700',
+    amber: 'bg-amber-100 text-amber-700',
+    emerald: 'bg-emerald-100 text-emerald-700',
+    slate: 'bg-slate-100 text-slate-700',
+  };
+  return <span className={`${classes[tone]} px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1.5`}>{icon}{label}</span>;
 };
