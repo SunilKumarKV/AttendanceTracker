@@ -3,6 +3,7 @@ import { AuthProvider } from './auth';
 import { Login } from './components/Login';
 import { Dashboard } from './components/Dashboard';
 import { MarkAttendance } from './components/MarkAttendance';
+import { ProfessorDashboard } from './components/ProfessorDashboard';
 import { Profile } from './components/Profile';
 import { ProfessorProfile } from './components/ProfessorProfile';
 import { Settings } from './components/Settings';
@@ -101,6 +102,14 @@ export default function App() {
           />
 
           {/* Professor Specific Routes */}
+          <Route
+            path="/professor-dashboard"
+            element={
+              <RoleRoute allowedRoles={['PROFESSOR']}>
+                <ProfessorDashboard />
+              </RoleRoute>
+            }
+          />
           <Route
             path="/my-students"
             element={

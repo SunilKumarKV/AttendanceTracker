@@ -40,6 +40,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
   ];
 
   const professorItems: SidebarItem[] = [
+    { label: 'Dashboard', path: '/professor-dashboard', icon: LayoutDashboard },
     { label: 'Mark Attendance', path: '/mark-attendance', icon: UserCheck },
     { label: 'My Students', path: '/my-students', icon: Users },
     { label: 'My Reports', path: '/my-reports', icon: BarChart3 },

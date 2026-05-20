@@ -20,7 +20,7 @@ export const Login: React.FC = () => {
 
     try {
       const user = await login(email, password);
-      navigate(user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' ? '/dashboard' : '/mark-attendance');
+      navigate(user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' ? '/dashboard' : '/professor-dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid email or password.');
     } finally {

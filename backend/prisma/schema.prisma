@@ -259,6 +259,8 @@ model AttendanceSession {
   sessionDate     DateTime
   topic           String?
   notes           String?
+  isLocked        Boolean            @default(false)
+  lockedAt        DateTime?
   records         AttendanceRecord[]
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt

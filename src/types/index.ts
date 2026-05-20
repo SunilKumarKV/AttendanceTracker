@@ -1,4 +1,5 @@
 export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'PROFESSOR';
+export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED';
 
 export interface Student {
   id?: string;
@@ -10,7 +11,7 @@ export interface Student {
   parentPhone: string;
   subject?: string;
   attendancePercentage?: number;
-  status?: 'Present' | 'Absent';
+  status?: AttendanceStatus;
 }
 
 export interface User {
