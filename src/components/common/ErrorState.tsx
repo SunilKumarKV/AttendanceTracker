@@ -14,10 +14,12 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
   actionLabel = 'Try again',
   onAction,
 }) => (
-  <div className="flex min-h-48 flex-col items-center justify-center rounded-2xl border border-red-100 bg-red-50 p-8 text-center">
-    <AlertTriangle className="mb-4 h-10 w-10 text-red-500" />
-    <h2 className="text-lg font-bold text-slate-900">{title}</h2>
-    <p className="mt-2 max-w-md text-sm text-slate-600">{message}</p>
+  <div className="flex min-h-48 flex-col items-center justify-center rounded-2xl border border-red-100 bg-red-50 p-8 text-center dark:border-red-900/50 dark:bg-red-950/30">
+    <div className="mb-4 rounded-2xl bg-white p-4 text-red-500 shadow-sm dark:bg-red-950">
+      <AlertTriangle className="h-10 w-10" />
+    </div>
+    <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">{title}</h2>
+    <p className="mt-2 max-w-md text-sm text-slate-600 dark:text-slate-300">{message}</p>
     {onAction ? (
       <button
         type="button"

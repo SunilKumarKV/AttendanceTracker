@@ -22,6 +22,8 @@ import {
   updateProfessor,
 } from '../api/admin';
 import { ConfirmDialog, EmptyState, ErrorState, Loader } from './common';
+import { Pagination, TableSkeleton } from './common';
+import { useDebounce } from '../hooks';
 
 const emptyForm = {
   name: '',
@@ -42,13 +44,18 @@ export const ManageProfessors: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const pageSize = 10;
+  const debouncedSearch = useDebounce(searchTerm, 300);
 
-  const fetchProfessors = async (search = searchTerm) => {
+  const fetchProfessors = async (search = debouncedSearch, nextPage = page) => {
     setLoading(true);
     setError('');
     try {
-      const response = await getProfessors(search);
+      const response = await getProfessors(search, nextPage, pageSize);
       setProfessors(response.data.items);
+      setTotal(response.data.pagination.total);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load professors.');
     } finally {
@@ -57,11 +64,12 @@ export const ManageProfessors: React.FC = () => {
   };
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      void fetchProfessors(searchTerm);
-    }, 250);
-    return () => window.clearTimeout(timeout);
-  }, [searchTerm]);
+    setPage(1);
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    void fetchProfessors(debouncedSearch, page);
+  }, [debouncedSearch, page]);
 
   const handleOpenModal = (prof: Professor | null = null) => {
     setEditingProfessor(prof);
@@ -124,6 +132,7 @@ export const ManageProfessors: React.FC = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
           <input
             type="text"
+            aria-label="Search professors"
             placeholder="Search by name, ID or email..."
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
             value={searchTerm}
@@ -142,9 +151,9 @@ export const ManageProfessors: React.FC = () => {
       {error ? (
         <ErrorState title="Could not load professors" message={error} onAction={() => void fetchProfessors()} />
       ) : loading ? (
-        <Loader label="Loading professors..." />
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm dark:border-slate-800 dark:bg-slate-900"><TableSkeleton rows={6} columns={5} /></div>
       ) : professors.length === 0 ? (
-        <EmptyState title="No professors found" message="Add a professor to start assigning subjects." />
+        <EmptyState title="No professors found" message="Try a different search or add a professor to start assigning subjects." actionLabel="Add Professor" onAction={() => handleOpenModal()} />
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
@@ -195,10 +204,10 @@ export const ManageProfessors: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => handleOpenModal(prof)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit Professor">
+                        <button onClick={() => handleOpenModal(prof)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit Professor" aria-label={`Edit ${prof.name}`}>
                           <Edit2 size={18} />
                         </button>
-                        <button onClick={() => setDeletingProfessor(prof)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete Professor">
+                        <button onClick={() => setDeletingProfessor(prof)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete Professor" aria-label={`Delete ${prof.name}`}>
                           <Trash2 size={18} />
                         </button>
                       </div>
@@ -208,6 +217,7 @@ export const ManageProfessors: React.FC = () => {
               </tbody>
             </table>
           </div>
+          <Pagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} />
         </div>
       )}
 
@@ -225,7 +235,7 @@ export const ManageProfessors: React.FC = () => {
                   <p className="text-xs text-slate-500 font-medium">{editingProfessor ? 'Update existing faculty details' : 'Register a new faculty member'}</p>
                 </div>
               </div>
-              <button onClick={handleCloseModal} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-all">
+              <button onClick={handleCloseModal} aria-label="Close professor form" className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-all">
                 <X size={20} />
               </button>
             </div>
@@ -284,6 +294,7 @@ const Field: React.FC<{
       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      aria-label={label}
     />
   </div>
 );

@@ -13,6 +13,8 @@ import { Reports } from './components/Reports';
 import { ManageProfessors } from './components/ManageProfessors';
 import { PlaceholderPage } from './components/PlaceholderPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { ToastSetup } from './components/common';
+import { DemoPage, LandingPage, PricingPage, PrivacyPage, TermsPage } from './pages';
 import { ProtectedRoute, RoleRoute } from './routes';
 
 export default function App() {
@@ -20,7 +22,13 @@ export default function App() {
     <AuthProvider>
       <ErrorBoundary>
         <Router>
+          <ToastSetup />
           <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/demo" element={<DemoPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/login" element={<Login />} />
           
           {/* Admin & Professor Shared Routes */}
@@ -127,7 +135,6 @@ export default function App() {
             }
           />
 
-          <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>

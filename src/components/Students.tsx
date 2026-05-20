@@ -16,8 +16,9 @@ import Papa from 'papaparse';
 import { toast, Toaster } from 'sonner';
 import * as XLSX from 'xlsx';
 import { createStudent, deleteStudent, getStudents, updateStudent } from '../api/admin';
-import { ConfirmDialog, EmptyState, ErrorState } from './common';
+import { ConfirmDialog, EmptyState, ErrorState, Pagination, TableSkeleton } from './common';
 import { Student } from '../types';
+import { useDebounce } from '../hooks';
 
 const emptyStudent: Student = {
   name: '',
@@ -43,13 +44,18 @@ export const Students: React.FC = () => {
   const [formData, setFormData] = useState<Student>(emptyStudent);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const pageSize = 10;
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
-  const fetchStudents = async (search = searchQuery) => {
+  const fetchStudents = async (search = debouncedSearch, nextPage = page) => {
     setLoading(true);
     setError('');
     try {
-      const response = await getStudents(search);
+      const response = await getStudents(search, nextPage, pageSize);
       setStudents(response.data.items);
+      setTotal(response.data.pagination.total);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load students.');
     } finally {
@@ -58,11 +64,12 @@ export const Students: React.FC = () => {
   };
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      void fetchStudents(searchQuery);
-    }, 250);
-    return () => window.clearTimeout(timeout);
-  }, [searchQuery]);
+    setPage(1);
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    void fetchStudents(debouncedSearch, page);
+  }, [debouncedSearch, page]);
 
   const resetForm = () => {
     setFormData(emptyStudent);
@@ -219,7 +226,7 @@ export const Students: React.FC = () => {
           <h2 className="text-3xl font-bold text-slate-900">Student Management</h2>
           <p className="text-slate-500 font-medium">Manage your student database and attendance records.</p>
         </div>
-        <button onClick={() => { resetForm(); setIsAddModalOpen(true); }} className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all active:scale-95">
+        <button onClick={() => { resetForm(); setIsAddModalOpen(true); }} aria-label="Add student" className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all active:scale-95">
           <UserPlus size={20} />
           Add Student
         </button>
@@ -239,16 +246,16 @@ export const Students: React.FC = () => {
           <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/50">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input type="text" placeholder="Search by name or roll number..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 outline-none transition-all font-medium" />
+              <input type="text" aria-label="Search students" placeholder="Search by name or roll number..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 outline-none transition-all font-medium" />
             </div>
-            <div className="text-sm font-bold text-slate-500 uppercase tracking-widest">Total: {students.length} Students</div>
+            <div className="text-sm font-bold text-slate-500 uppercase tracking-widest">Total: {total} Students</div>
           </div>
           {error ? (
             <div className="p-6"><ErrorState title="Could not load students" message={error} onAction={() => void fetchStudents()} /></div>
           ) : loading ? (
-            <div className="px-6 py-12 text-center"><Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-3" /><span className="text-slate-400 font-bold">Loading students...</span></div>
+            <TableSkeleton rows={6} columns={6} />
           ) : students.length === 0 ? (
-            <div className="p-6"><EmptyState title="No students found" message="Add or import students to start building the roster." /></div>
+            <div className="p-6"><EmptyState title="No students found" message="Try a different search or add/import students to start building the roster." actionLabel="Add Student" onAction={() => { resetForm(); setIsAddModalOpen(true); }} /></div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
@@ -267,8 +274,8 @@ export const Students: React.FC = () => {
                       <td className="px-6 py-4">{getStatusBadge(student.attendancePercentage || 0)}</td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => { setSelectedStudent(student); setFormData(student); setFormErrors({}); setIsEditModalOpen(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit2 size={18} /></button>
-                          <button onClick={() => setSelectedStudent(student)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
+                          <button onClick={() => { setSelectedStudent(student); setFormData(student); setFormErrors({}); setIsEditModalOpen(true); }} aria-label={`Edit ${student.name}`} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit2 size={18} /></button>
+                          <button onClick={() => setSelectedStudent(student)} aria-label={`Delete ${student.name}`} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
                         </div>
                       </td>
                     </tr>
@@ -277,6 +284,7 @@ export const Students: React.FC = () => {
               </table>
             </div>
           )}
+          {!loading && !error && students.length > 0 && <Pagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} />}
         </div>
       ) : (
         <div className="space-y-8">
@@ -307,7 +315,7 @@ export const Students: React.FC = () => {
           <div className="bg-white rounded-[32px] w-full max-w-lg shadow-2xl overflow-hidden">
             <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <h3 className="text-2xl font-bold text-slate-900">{isAddModalOpen ? 'Add New Student' : 'Edit Student Details'}</h3>
-              <button onClick={() => { setIsAddModalOpen(false); setIsEditModalOpen(false); setSelectedStudent(null); resetForm(); }} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24} /></button>
+              <button onClick={() => { setIsAddModalOpen(false); setIsEditModalOpen(false); setSelectedStudent(null); resetForm(); }} aria-label="Close student form" className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24} /></button>
             </div>
             <form onSubmit={saveStudent} className="p-8 space-y-6">
               <StudentField label="Full Name" value={formData.name} error={formErrors.name} onChange={(name) => setFormData({ ...formData, name })} />
@@ -356,6 +364,7 @@ const StudentField: React.FC<{
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className={`w-full px-4 py-3 rounded-xl border outline-none transition-all font-medium disabled:bg-slate-50 disabled:text-slate-400 ${error ? 'border-red-500 focus:ring-red-500/10' : 'border-slate-200 focus:border-blue-500 focus:ring-blue-500/10'}`}
+      aria-label={label}
     />
     {error && <p className="text-red-500 text-xs font-bold ml-1">{error}</p>}
   </div>

@@ -45,8 +45,8 @@ export const getAdminDashboard = () => (
   apiClient<ApiResponse<DashboardData>>('/admin/dashboard')
 );
 
-export const getProfessors = (search?: string) => (
-  apiClient<ApiResponse<Paginated<Professor>>>(`/professors${queryString({ search, pageSize: 100 })}`)
+export const getProfessors = (search?: string, page = 1, pageSize = 10) => (
+  apiClient<ApiResponse<Paginated<Professor>>>(`/professors${queryString({ search, page, pageSize })}`)
 );
 
 export const createProfessor = (data: Partial<Professor>) => (
@@ -67,8 +67,8 @@ export const deleteProfessor = (id: string) => (
   apiClient<void>(`/professors/${id}`, { method: 'DELETE' })
 );
 
-export const getStudents = (search?: string) => (
-  apiClient<ApiResponse<Paginated<Student>>>(`/students${queryString({ search, pageSize: 100 })}`)
+export const getStudents = (search?: string, page = 1, pageSize = 10) => (
+  apiClient<ApiResponse<Paginated<Student>>>(`/students${queryString({ search, page, pageSize })}`)
 );
 
 export const createStudent = (data: Student) => (

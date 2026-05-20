@@ -33,16 +33,18 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
     if (hasError) {
       return (
-        <div className="min-h-[400px] flex flex-col items-center justify-center p-8 text-center bg-white rounded-3xl border border-slate-100 shadow-sm">
-          <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 mb-6">
+        <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center bg-slate-50 dark:bg-slate-950">
+          <div className="w-full max-w-lg rounded-3xl border border-red-100 bg-white p-8 shadow-xl shadow-slate-200/60 dark:border-red-900/50 dark:bg-slate-900 dark:shadow-none">
+          <div className="mx-auto w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 mb-6 dark:bg-red-950/50">
             <AlertTriangle size={32} />
           </div>
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">Something went wrong</h2>
-          <p className="text-slate-500 mb-8 max-w-md mx-auto">
+          <h2 className="text-2xl font-bold text-slate-900 mb-2 dark:text-white">Something went wrong</h2>
+          <p className="text-slate-500 mb-8 max-w-md mx-auto dark:text-slate-300">
             We encountered an unexpected error. Please try refreshing the page or contact support if the problem persists.
           </p>
           <button
             onClick={() => window.location.reload()}
+            aria-label="Refresh page"
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-3 rounded-xl transition-all active:scale-95"
           >
             <RefreshCw size={20} />
@@ -55,6 +57,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
               </p>
             </div>
           )}
+          </div>
         </div>
       );
     }
