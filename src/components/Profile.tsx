@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Camera, Save, Lock, User as UserIcon, Mail, Phone, School, Building2, Loader2 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
 import { toast, Toaster } from 'sonner';
 
 export const Profile: React.FC = () => {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 

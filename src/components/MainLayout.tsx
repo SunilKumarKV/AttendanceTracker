@@ -51,7 +51,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
   const getPageTitle = () => {
     const currentItem = [...adminItems, ...professorItems, { label: 'Profile', path: '/profile' }, { label: 'Profile', path: '/professor-profile' }]
       .find(item => item.path === location.pathname);
-    return currentItem?.label || 'AttendancePro';
+    return currentItem?.label || 'AttendanceTracker';
   };
 
   const handleLogout = () => {

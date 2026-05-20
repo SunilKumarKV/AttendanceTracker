@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   UserPlus, 
   Search, 
@@ -6,9 +6,7 @@ import {
   Trash2, 
   Key, 
   X, 
-  CheckCircle2, 
   AlertCircle,
-  MoreVertical,
   Mail,
   User as UserIcon,
   Phone,
@@ -19,7 +17,6 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { User } from '../types';
-import { WEBHOOK_URL } from '@/src/config';
 
 interface Professor extends User {
   status: 'Active' | 'Inactive';
@@ -123,9 +120,7 @@ export const ManageProfessors: React.FC = () => {
 
   const sendToWebhook = async (data: any) => {
     try {
-      // In a real app, this would be a fetch call
       console.log('Sending to webhook:', data);
-      // await fetch(WEBHOOK_URL, { method: 'POST', body: JSON.stringify(data) });
     } catch (error) {
       console.error('Webhook error:', error);
     }

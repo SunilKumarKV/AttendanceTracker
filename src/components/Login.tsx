@@ -141,7 +141,7 @@ export const Login: React.FC = () => {
       </div>
 
       <p className="mt-8 text-slate-400 text-sm font-medium">
-        &copy; 2026 AttendancePro. All rights reserved.
+        &copy; 2026 AttendanceTracker. All rights reserved.
       </p>
     </div>
   );

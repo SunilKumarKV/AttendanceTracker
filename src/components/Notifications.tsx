@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  Bell, 
   Search, 
   Download, 
-  Filter, 
   Calendar as CalendarIcon, 
   AlertTriangle, 
   AlertCircle, 

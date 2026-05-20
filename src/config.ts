@@ -1,1 +1,1 @@
-export const WEBHOOK_URL = "https://sunilkumarkv.app.n8n.cloud/webhook/attendance";
+export const WEBHOOK_URL = import.meta.env.VITE_API_BASE_URL ?? '';

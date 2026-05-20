@@ -14,7 +14,7 @@ interface AppSettings {
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
-  collegeName: 'AttendancePro University',
+  collegeName: 'AttendanceTracker University',
   academicYear: '2025-26',
   principalName: 'Dr. Sarah Johnson',
   minAttendance: 75,

@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   FileText, 
   Download, 
   Printer, 
-  Search, 
   Calendar as CalendarIcon, 
   BookOpen, 
   Filter,
@@ -11,7 +10,6 @@ import {
   Loader2,
   TrendingDown,
   TrendingUp,
-  Users,
   CheckCircle2,
   XCircle
 } from 'lucide-react';
@@ -354,7 +352,7 @@ export const Reports: React.FC = () => {
                       paddingAngle={5}
                       dataKey="value"
                     >
-                      {pieData.map((entry, index) => (
+                      {pieData.map((_, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
@@ -432,7 +430,7 @@ export const Reports: React.FC = () => {
       <div className="hidden print:block mb-10">
         <div className="flex justify-between items-end border-b-2 border-slate-900 pb-6">
           <div>
-            <h1 className="text-4xl font-black text-slate-900">AttendancePro Report</h1>
+            <h1 className="text-4xl font-black text-slate-900">AttendanceTracker Report</h1>
             <p className="text-slate-500 font-bold mt-1">Subject: {subject} | Period: {fromDate} to {toDate}</p>
           </div>
           <div className="text-right">

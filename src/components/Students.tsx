@@ -3,16 +3,13 @@ import {
   Upload, 
   Users, 
   Search, 
-  Plus, 
   Edit2, 
   Trash2, 
   Download, 
-  FileText, 
   X, 
   AlertCircle, 
   CheckCircle2, 
   Loader2,
-  ChevronRight,
   UserPlus
 } from 'lucide-react';
 import { Student } from '../types';

@@ -1,20 +1,40 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# AttendanceTracker
 
-# Run and deploy your AI Studio app
+AttendanceTracker is a Vite + React attendance management app for college workflows. It includes role-aware pages for admins and professors, student management, attendance marking, notifications, reports, and settings.
 
-This contains everything you need to run your app locally.
+## Setup
 
-View your app in AI Studio: https://ai.studio/apps/204d1b96-b2ea-4c13-9574-7328e16627f0
+Prerequisites:
 
-## Run Locally
+- Node.js 18 or newer
+- npm
 
-**Prerequisites:**  Node.js
+Install dependencies:
 
+```bash
+npm install
+```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Create a local environment file:
+
+```bash
+cp .env.example .env.local
+```
+
+The default API base URL is:
+
+```bash
+VITE_API_BASE_URL=http://localhost:5000/api
+```
+
+## Scripts
+
+- `npm run dev` starts the Vite development server on port 3000.
+- `npm run build` creates a production build in `dist/`.
+- `npm run preview` serves the production build locally.
+- `npm run clean` removes the `dist/` directory.
+- `npm run lint` runs TypeScript checks without emitting files.
+
+## Status
+
+Phase 1 is a branding and configuration cleanup pass. The app is still using the existing frontend flows and mock fallback data; application logic has not been changed in this phase.
