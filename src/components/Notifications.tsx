@@ -15,7 +15,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
-import { getNotificationLogs, NotificationFilters, NotificationLog, sendTestNotification } from '../api/notifications';
+import { getNotificationLogs, NotificationFilters, NotificationLog, runLowAttendanceSweep, sendTestNotification } from '../api/notifications';
 import { ErrorState } from './common';
 
 const statusOptions = ['All', 'Delivered', 'Skipped', 'Failed'];
@@ -28,6 +28,7 @@ export const Notifications: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
+  const [runningSweep, setRunningSweep] = useState(false);
 
   const loadNotifications = useCallback(async (nextFilters = filters) => {
     setLoading(true);
@@ -80,6 +81,19 @@ export const Notifications: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  const runSweep = async () => {
+    setRunningSweep(true);
+    try {
+      const response = await runLowAttendanceSweep();
+      toast.success(`Sweep completed: ${response.data.processed} alerts processed.`);
+      await loadNotifications();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not run low attendance sweep.');
+    } finally {
+      setRunningSweep(false);
+    }
+  };
+
   const sendTest = async () => {
     setSendingTest(true);
     try {
@@ -115,6 +129,10 @@ export const Notifications: React.FC = () => {
           <p className="text-slate-500 font-medium">Monitor email, SMS, and WhatsApp delivery attempts.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <button onClick={runSweep} disabled={runningSweep} className="flex items-center gap-2 bg-emerald-600 text-white px-5 py-3 rounded-2xl font-bold shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 disabled:opacity-50">
+            {runningSweep ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+            Run Low Attendance Sweep
+          </button>
           <button onClick={sendTest} disabled={sendingTest} className="flex items-center gap-2 bg-blue-600 text-white px-5 py-3 rounded-2xl font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 disabled:opacity-50">
             {sendingTest ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
             Send Test

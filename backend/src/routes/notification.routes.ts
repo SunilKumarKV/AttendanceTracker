@@ -13,5 +13,6 @@ notificationRouter.use(['/notifications', '/settings/notifications'], writeRateL
 
 notificationRouter.get('/notifications', asyncHandler(notificationController.list));
 notificationRouter.post('/notifications/test', validateBody(testNotificationSchema), asyncHandler(notificationController.test));
+notificationRouter.post('/notifications/run-low-attendance-sweep', asyncHandler(notificationController.runLowAttendanceSweep));
 notificationRouter.get('/settings/notifications', asyncHandler(notificationController.settings));
 notificationRouter.patch('/settings/notifications', validateBody(notificationSettingsSchema), asyncHandler(notificationController.updateSettings));

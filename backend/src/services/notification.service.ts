@@ -19,9 +19,12 @@ const defaultNotificationSettings = {
   monthlyReportsEnabled: true,
   emailEnabled: true,
   smsEnabled: false,
-  whatsappEnabled: false,
+  whatsappEnabled: true,
   alertTimingPreference: '08:00',
   supportEmail: '',
+  warningAttendancePct: 75,
+  criticalAttendancePct: 55,
+  severeAttendancePct: 45,
 };
 
 const parseJsonSettings = (settings: Prisma.JsonValue | null | undefined) => {
@@ -50,7 +53,12 @@ export const getNotificationSettings = async (context: NotificationContext) => {
     whatsappEnabled: Boolean(values.whatsappEnabled),
     alertTimingPreference: String(values.alertTimingPreference || defaultNotificationSettings.alertTimingPreference),
     supportEmail: String(values.supportEmail || env.supportEmail),
+    warningAttendancePct: Number(values.warningAttendancePct || settings.minimumAttendancePct || defaultNotificationSettings.warningAttendancePct),
+    criticalAttendancePct: Number(values.criticalAttendancePct || defaultNotificationSettings.criticalAttendancePct),
+    severeAttendancePct: Number(values.severeAttendancePct || defaultNotificationSettings.severeAttendancePct),
     smtpConfigured: Boolean(env.smtp.host && env.smtp.user && env.smtp.pass),
+    smsConfigured: Boolean(env.twilio.accountSid && env.twilio.authToken && env.twilio.fromNumber),
+    whatsappConfigured: Boolean((env.whatsappCloud.token && env.whatsappCloud.phoneNumberId) || (env.twilio.accountSid && env.twilio.authToken && env.twilio.whatsappFrom)),
   };
 };
 
@@ -67,6 +75,9 @@ export const updateNotificationSettings = async (context: NotificationContext, r
     whatsappEnabled: data.whatsappEnabled ?? current.whatsappEnabled,
     alertTimingPreference: data.alertTimingPreference ?? current.alertTimingPreference,
     supportEmail: data.supportEmail ?? current.supportEmail,
+    warningAttendancePct: data.warningAttendancePct ?? current.warningAttendancePct,
+    criticalAttendancePct: data.criticalAttendancePct ?? current.criticalAttendancePct,
+    severeAttendancePct: data.severeAttendancePct ?? current.severeAttendancePct,
   };
   const settings = await prisma.appSettings.upsert({
     where: { institutionId },
@@ -87,6 +98,8 @@ export const updateNotificationSettings = async (context: NotificationContext, r
     minimumAttendancePct: settings.minimumAttendancePct,
     notificationEnabled: settings.notificationEnabled,
     smtpConfigured: Boolean(env.smtp.host && env.smtp.user && env.smtp.pass),
+    smsConfigured: Boolean(env.twilio.accountSid && env.twilio.authToken && env.twilio.fromNumber),
+    whatsappConfigured: Boolean((env.whatsappCloud.token && env.whatsappCloud.phoneNumberId) || (env.twilio.accountSid && env.twilio.authToken && env.twilio.whatsappFrom)),
   };
 };
 
@@ -175,42 +188,42 @@ export const listNotifications = async (context: NotificationContext, rawQuery: 
 };
 
 const calculateStudentAttendance = async (studentId: string) => {
-  const records = await prisma.attendanceRecord.findMany({
-    where: { studentId },
-    select: { status: true },
-  });
+  const records = await prisma.attendanceRecord.findMany({ where: { studentId }, select: { status: true } });
   const total = records.length;
-  const attended = records.filter((record) => record.status === 'PRESENT').length;
-  return total === 0 ? 0 : Number(((attended / total) * 100).toFixed(1));
+  const attended = records.filter((record) => record.status === 'PRESENT' || record.status === 'LATE').length;
+  return { total, attended, percentage: total === 0 ? 100 : Number(((attended / total) * 100).toFixed(1)) };
 };
 
-const messageForRule = async (rule: string, studentId?: string) => {
+const severityForPercentage = (percentage: number, settings: Awaited<ReturnType<typeof getNotificationSettings>>) => {
+  if (percentage <= settings.severeAttendancePct) return 'SEVERE';
+  if (percentage <= settings.criticalAttendancePct) return 'CRITICAL';
+  if (percentage < settings.warningAttendancePct) return 'WARNING';
+  return 'OK';
+};
+
+const messageForRule = async (rule: string, studentId?: string, settings?: Awaited<ReturnType<typeof getNotificationSettings>>) => {
   const student = studentId
     ? await prisma.student.findUnique({ where: { id: studentId }, include: { course: true, section: true } })
     : null;
   const studentName = student?.name ?? 'Test Student';
   const rollNo = student?.rollNumber ?? 'TEST-001';
-  const attendancePercentage = student ? await calculateStudentAttendance(student.id) : 68;
+  const stats = student ? await calculateStudentAttendance(student.id) : { total: 30, attended: 20, percentage: 66.7 };
+  const level = settings ? severityForPercentage(stats.percentage, settings) : 'WARNING';
+  const courseLine = student ? `${student.course.name} / ${student.section.name}` : 'Demo Class';
 
   if (rule === 'absent_alert') {
-    return {
-      student,
-      subject: 'Absent Alert',
-      message: `${studentName} (${rollNo}) was marked absent today. Please contact the institution for any correction.`,
-    };
+    return { student, subject: 'Absent Alert', message: `AttendancePro Alert: ${studentName} (${rollNo}) was marked absent today. Class: ${courseLine}. Please contact the institution if this needs correction.` };
   }
   if (rule === 'monthly_report_alert') {
-    return {
-      student,
-      subject: 'Monthly Attendance Report',
-      message: `Monthly attendance report for ${studentName} (${rollNo}): ${attendancePercentage}% attendance.`,
-    };
+    return { student, subject: 'Monthly Attendance Report', message: `Monthly attendance report for ${studentName} (${rollNo}) - ${courseLine}: ${stats.percentage}% attendance (${stats.attended}/${stats.total}).` };
   }
-  return {
-    student,
-    subject: 'Low Attendance Alert',
-    message: `${studentName} (${rollNo}) has ${attendancePercentage}% attendance, which is below the required threshold.`,
-  };
+  const target = settings?.warningAttendancePct ?? 75;
+  const action = level === 'SEVERE'
+    ? 'Immediate parent/HOD intervention is required.'
+    : level === 'CRITICAL'
+      ? 'Parent notification and counselling are recommended.'
+      : 'Please improve attendance to avoid shortage.';
+  return { student, subject: `${level === 'OK' ? '' : level + ' '}Low Attendance Alert`.trim(), message: `AttendancePro Alert: ${studentName} (${rollNo}) has ${stats.percentage}% attendance (${stats.attended}/${stats.total}), below the required ${target}%. Class: ${courseLine}. ${action}`, attendancePercentage: stats.percentage, severity: level };
 };
 
 export const sendNotification = async (context: NotificationContext, data: {
@@ -283,7 +296,7 @@ export const sendTestNotification = async (context: NotificationContext, rawData
   const data = testNotificationSchema.parse(rawData);
   const settings = await getNotificationSettings(context);
   if (!settings.notificationEnabled) throw new AppError('Notifications are disabled', StatusCodes.BAD_REQUEST);
-  const composed = await messageForRule(data.rule, data.studentId);
+  const composed = await messageForRule(data.rule, data.studentId, settings);
   const recipient = data.recipient
     ?? (data.channel === 'email' ? settings.supportEmail || env.supportEmail : composed.student?.parentPhone || composed.student?.phone || 'not-configured');
   return sendNotification({
@@ -308,7 +321,8 @@ const logSkippedRule = async (
   reason: string,
   attendanceSessionId?: string | null,
 ) => {
-  const composed = await messageForRule(rule, studentId);
+  const settings = await getNotificationSettings(context);
+  const composed = await messageForRule(rule, studentId, settings);
   return sendNotification(context, {
     channel,
     recipient: 'not-configured',
@@ -327,7 +341,7 @@ export const sendAbsentAlert = async (context: NotificationContext, studentId: s
   if (!settings.notificationEnabled || !settings.absentAlertsEnabled) {
     return logSkippedRule(context, studentId, channel, 'absent_alert', 'Absent alerts are disabled', attendanceSessionId);
   }
-  const composed = await messageForRule('absent_alert', studentId);
+  const composed = await messageForRule('absent_alert', studentId, settings);
   const recipient = channel === 'email' ? settings.supportEmail || env.supportEmail : composed.student?.parentPhone || composed.student?.phone || 'not-configured';
   return sendNotification(context, {
     channel,
@@ -346,7 +360,7 @@ export const sendLowAttendanceAlert = async (context: NotificationContext, stude
   if (!settings.notificationEnabled || !settings.lowAttendanceAlertsEnabled) {
     return logSkippedRule(context, studentId, channel, 'low_attendance_alert', 'Low attendance alerts are disabled');
   }
-  const composed = await messageForRule('low_attendance_alert', studentId);
+  const composed = await messageForRule('low_attendance_alert', studentId, settings);
   const recipient = channel === 'email' ? settings.supportEmail || env.supportEmail : composed.student?.parentPhone || composed.student?.phone || 'not-configured';
   return sendNotification(context, {
     channel,
@@ -364,7 +378,7 @@ export const sendMonthlyReportAlert = async (context: NotificationContext, stude
   if (!settings.notificationEnabled || !settings.monthlyReportsEnabled) {
     return logSkippedRule(context, studentId, channel, 'monthly_report_alert', 'Monthly report alerts are disabled');
   }
-  const composed = await messageForRule('monthly_report_alert', studentId);
+  const composed = await messageForRule('monthly_report_alert', studentId, settings);
   const recipient = channel === 'email' ? settings.supportEmail || env.supportEmail : composed.student?.parentPhone || composed.student?.phone || 'not-configured';
   return sendNotification(context, {
     channel,
@@ -375,4 +389,55 @@ export const sendMonthlyReportAlert = async (context: NotificationContext, stude
     message: composed.message,
     studentId: composed.student?.id ?? studentId,
   });
+};
+
+
+export const runLowAttendanceSweep = async (context: NotificationContext) => {
+  const institutionId = requireInstitutionId(context.institutionId);
+  const settings = await getNotificationSettings(context);
+  if (!settings.notificationEnabled || !settings.lowAttendanceAlertsEnabled) {
+    throw new AppError('Low attendance notifications are disabled', StatusCodes.BAD_REQUEST);
+  }
+
+  const students = await prisma.student.findMany({
+    where: { institutionId, isActive: true },
+    include: { course: true, section: true },
+    orderBy: [{ course: { name: 'asc' } }, { section: { name: 'asc' } }, { rollNumber: 'asc' }],
+  });
+
+  const outcomes = [] as { status: string }[];
+  for (const student of students) {
+    const stats = await calculateStudentAttendance(student.id);
+    const severity = severityForPercentage(stats.percentage, settings);
+    if (stats.total === 0 || severity === 'OK') continue;
+
+    const channels: ('email' | 'sms' | 'whatsapp')[] = [];
+    if (settings.whatsappEnabled) channels.push('whatsapp');
+    if (settings.smsEnabled && (severity === 'CRITICAL' || severity === 'SEVERE')) channels.push('sms');
+    if (settings.emailEnabled && severity === 'SEVERE') channels.push('email');
+    if (channels.length === 0) channels.push('email');
+
+    for (const channel of channels) {
+      const composed = await messageForRule('low_attendance_alert', student.id, settings);
+      const recipient = channel === 'email' ? settings.supportEmail || env.supportEmail : student.parentPhone || student.phone || 'not-configured';
+      const log = await sendNotification(context, {
+        channel,
+        recipient,
+        recipientType: channel === 'email' ? 'HOD/Admin' : severity === 'WARNING' ? 'Student/Guardian' : 'Guardian',
+        type: `${severity} Low Attendance`,
+        subject: composed.subject,
+        message: composed.message,
+        studentId: student.id,
+        reason: `Automated ${severity.toLowerCase()} threshold sweep`,
+      });
+      outcomes.push({ status: log.status });
+    }
+  }
+
+  return {
+    processed: outcomes.length,
+    delivered: outcomes.filter((item) => item.status === 'Delivered').length,
+    skipped: outcomes.filter((item) => item.status === 'Skipped').length,
+    failed: outcomes.filter((item) => item.status === 'Failed').length,
+  };
 };

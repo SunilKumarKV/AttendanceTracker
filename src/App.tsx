@@ -72,7 +72,7 @@ export default function App() {
           <Route
             path="/dashboard"
             element={
-              <RoleRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+              <RoleRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'HOD']}>
                 <Dashboard />
               </RoleRoute>
             }
@@ -80,7 +80,7 @@ export default function App() {
           <Route
             path="/manage-professors"
             element={
-              <RoleRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+              <RoleRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'HOD']}>
                 <ManageProfessors />
               </RoleRoute>
             }
@@ -88,7 +88,7 @@ export default function App() {
           <Route
             path="/academics"
             element={
-              <RoleRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+              <RoleRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'HOD']}>
                 <AcademicManagement />
               </RoleRoute>
             }
@@ -98,7 +98,7 @@ export default function App() {
           <Route
             path="/students"
             element={
-              <RoleRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+              <RoleRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'HOD']}>
                 <Students />
               </RoleRoute>
             }
@@ -106,7 +106,7 @@ export default function App() {
           <Route
             path="/settings"
             element={
-              <RoleRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+              <RoleRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'HOD']}>
                 <Settings />
               </RoleRoute>
             }
@@ -114,7 +114,7 @@ export default function App() {
           <Route
             path="/reports"
             element={
-              <RoleRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+              <RoleRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'HOD']}>
                 <Reports />
               </RoleRoute>
             }
@@ -122,7 +122,7 @@ export default function App() {
           <Route
             path="/notifications"
             element={
-              <RoleRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+              <RoleRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'HOD']}>
                 <Notifications />
               </RoleRoute>
             }

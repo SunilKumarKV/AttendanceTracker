@@ -20,6 +20,9 @@ export const testNotificationSchema = z.object({
 
 export const notificationSettingsSchema = z.object({
   minimumAttendancePct: z.number().int().min(0).max(100).optional(),
+  warningAttendancePct: z.number().int().min(0).max(100).optional(),
+  criticalAttendancePct: z.number().int().min(0).max(100).optional(),
+  severeAttendancePct: z.number().int().min(0).max(100).optional(),
   notificationEnabled: z.boolean().optional(),
   absentAlertsEnabled: z.boolean().optional(),
   lowAttendanceAlertsEnabled: z.boolean().optional(),

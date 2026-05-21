@@ -12,6 +12,9 @@ import { ErrorState, Loader } from './common';
 
 const fallbackSettings: NotificationSettings = {
   minimumAttendancePct: 75,
+  warningAttendancePct: 75,
+  criticalAttendancePct: 55,
+  severeAttendancePct: 45,
   notificationEnabled: true,
   absentAlertsEnabled: true,
   lowAttendanceAlertsEnabled: true,
@@ -193,8 +196,8 @@ export const Settings: React.FC = () => {
                 min="50"
                 max="90"
                 step="1"
-                value={settings.minimumAttendancePct}
-                onChange={(event) => setSettings({ ...settings, minimumAttendancePct: Number(event.target.value) })}
+                value={settings.warningAttendancePct}
+                onChange={(event) => setSettings({ ...settings, minimumAttendancePct: Number(event.target.value), warningAttendancePct: Number(event.target.value) })}
                 className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
               />
             </div>
@@ -202,6 +205,14 @@ export const Settings: React.FC = () => {
             <Toggle icon={<AlertTriangle size={20} />} title="Absent Alerts" description="Notify when a student is marked absent" enabled={settings.absentAlertsEnabled} onClick={() => toggle('absentAlertsEnabled')} />
             <Toggle icon={<AlertTriangle size={20} />} title="Low Attendance Alerts" description="Notify when attendance drops below the threshold" enabled={settings.lowAttendanceAlertsEnabled} onClick={() => toggle('lowAttendanceAlertsEnabled')} />
             <Toggle icon={<FileText size={20} />} title="Monthly Report Alerts" description="Send monthly attendance summaries" enabled={settings.monthlyReportsEnabled} onClick={() => toggle('monthlyReportsEnabled')} />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <NumberField label="Warning %" value={settings.warningAttendancePct} onChange={(value) => setSettings({ ...settings, warningAttendancePct: value, minimumAttendancePct: value })} />
+              <NumberField label="Critical %" value={settings.criticalAttendancePct} onChange={(value) => setSettings({ ...settings, criticalAttendancePct: value })} />
+              <NumberField label="Severe %" value={settings.severeAttendancePct} onChange={(value) => setSettings({ ...settings, severeAttendancePct: value })} />
+            </div>
+            <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900 font-medium">
+              Rule flow: below Warning sends student/guardian WhatsApp, below Critical adds parent SMS, below Severe adds HOD/Admin email escalation.
+            </div>
             <TextField label="Alert Timing Preference" value={settings.alertTimingPreference} onChange={(value) => setSettings({ ...settings, alertTimingPreference: value })} />
           </div>
         </section>
@@ -213,8 +224,8 @@ export const Settings: React.FC = () => {
           </h3>
           <div className="space-y-4">
             <Toggle icon={<Mail size={20} />} title="Email" description="Use Nodemailer SMTP provider" enabled={settings.emailEnabled} onClick={() => toggle('emailEnabled')} />
-            <Toggle icon={<MessageSquare size={20} />} title="SMS Placeholder" description="Log SMS attempts until a provider is configured" enabled={settings.smsEnabled} onClick={() => toggle('smsEnabled')} />
-            <Toggle icon={<MessageSquare size={20} />} title="WhatsApp Placeholder" description="Log WhatsApp attempts until a provider is configured" enabled={settings.whatsappEnabled} onClick={() => toggle('whatsappEnabled')} />
+            <Toggle icon={<MessageSquare size={20} />} title="SMS / Parent escalation" description="Uses Twilio when configured; otherwise logs skipped attempts safely" enabled={settings.smsEnabled} onClick={() => toggle('smsEnabled')} />
+            <Toggle icon={<MessageSquare size={20} />} title="WhatsApp alerts" description="Uses Meta Cloud API or Twilio WhatsApp when configured" enabled={settings.whatsappEnabled} onClick={() => toggle('whatsappEnabled')} />
             <div className="space-y-1.5">
               <label htmlFor="support-email" className="text-sm font-semibold text-slate-700 ml-1">Support Email</label>
               <input
@@ -277,6 +288,21 @@ const TextField: React.FC<{ label: string; value: string; type?: string; onChang
       type={type}
       value={value}
       onChange={(event) => onChange(event.target.value)}
+      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none"
+    />
+  </div>
+);
+
+const NumberField: React.FC<{ label: string; value: number; onChange: (value: number) => void }> = ({ label, value, onChange }) => (
+  <div className="space-y-1.5">
+    <label htmlFor={`setting-${label.toLowerCase().replace(/\s+/g, '-')}`} className="text-sm font-semibold text-slate-700 ml-1">{label}</label>
+    <input
+      id={`setting-${label.toLowerCase().replace(/\s+/g, '-')}`}
+      type="number"
+      min={0}
+      max={100}
+      value={value}
+      onChange={(event) => onChange(Number(event.target.value))}
       className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none"
     />
   </div>

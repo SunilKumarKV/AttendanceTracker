@@ -39,6 +39,14 @@ const envSchema = z.object({
   SMTP_USER: z.preprocess(emptyToUndefined, z.string().optional().default('')),
   SMTP_PASS: z.preprocess(emptyToUndefined, z.string().optional().default('')),
   SUPPORT_EMAIL: z.preprocess(emptyToUndefined, z.string().email().default('support@attendancetracker.com')),
+  TWILIO_ACCOUNT_SID: z.preprocess(emptyToUndefined, z.string().optional().default('')),
+  TWILIO_AUTH_TOKEN: z.preprocess(emptyToUndefined, z.string().optional().default('')),
+  TWILIO_FROM_NUMBER: z.preprocess(emptyToUndefined, z.string().optional().default('')),
+  TWILIO_WHATSAPP_FROM: z.preprocess(emptyToUndefined, z.string().optional().default('')),
+  WHATSAPP_CLOUD_TOKEN: z.preprocess(emptyToUndefined, z.string().optional().default('')),
+  WHATSAPP_PHONE_NUMBER_ID: z.preprocess(emptyToUndefined, z.string().optional().default('')),
+  WHATSAPP_TEMPLATE_NAME: z.preprocess(emptyToUndefined, z.string().optional().default('')),
+  WHATSAPP_TEMPLATE_LANG: z.preprocess(emptyToUndefined, z.string().optional().default('en')),
 });
 
 const parsed = envSchema.safeParse({
@@ -78,4 +86,16 @@ export const env = {
     pass: values.SMTP_PASS,
   },
   supportEmail: values.SUPPORT_EMAIL,
+  twilio: {
+    accountSid: values.TWILIO_ACCOUNT_SID,
+    authToken: values.TWILIO_AUTH_TOKEN,
+    fromNumber: values.TWILIO_FROM_NUMBER,
+    whatsappFrom: values.TWILIO_WHATSAPP_FROM,
+  },
+  whatsappCloud: {
+    token: values.WHATSAPP_CLOUD_TOKEN,
+    phoneNumberId: values.WHATSAPP_PHONE_NUMBER_ID,
+    templateName: values.WHATSAPP_TEMPLATE_NAME,
+    templateLang: values.WHATSAPP_TEMPLATE_LANG,
+  },
 };

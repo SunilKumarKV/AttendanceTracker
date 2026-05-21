@@ -1,4 +1,4 @@
-export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'PROFESSOR';
+export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'HOD' | 'PROFESSOR';
 export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED';
 
 export interface Student {

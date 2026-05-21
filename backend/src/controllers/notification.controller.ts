@@ -22,3 +22,7 @@ export const settings = async (request: Request, response: Response) => {
 export const updateSettings = async (request: Request, response: Response) => {
   response.status(StatusCodes.OK).json({ success: true, data: await notificationService.updateNotificationSettings(contextFrom(request), request.body) });
 };
+
+export const runLowAttendanceSweep = async (request: Request, response: Response) => {
+  response.status(StatusCodes.CREATED).json({ success: true, data: await notificationService.runLowAttendanceSweep(contextFrom(request)) });
+};

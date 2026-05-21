@@ -5,7 +5,7 @@ import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
 import { getPagination, toPaginatedResponse } from '../utils/pagination.js';
 import { writeAuditLog } from './audit.service.js';
-import { sendAbsentAlert, sendLowAttendanceAlert } from './notification.service.js';
+import { getNotificationSettings, sendAbsentAlert, sendLowAttendanceAlert } from './notification.service.js';
 
 interface ProfessorContext {
   userId?: string;
@@ -200,23 +200,27 @@ const sendAttendanceNotifications = async (
   records: { studentId: string; status: AttendanceStatus }[],
   attendanceSessionId?: string,
 ) => {
-  const settings = await prisma.appSettings.findUnique({ where: { institutionId: context.institutionId } });
-  const threshold = settings?.minimumAttendancePct ?? 75;
+  const settings = await getNotificationSettings(context);
+  const threshold = settings.warningAttendancePct ?? settings.minimumAttendancePct ?? 75;
 
   const tasks = records.flatMap((record) => {
     const notifications: Promise<unknown>[] = [];
     if (record.status === 'ABSENT') {
-      notifications.push(sendAbsentAlert(context, record.studentId, 'email', attendanceSessionId).catch((error) => {
-        logger.warn('Absent alert was not sent.', { studentId: record.studentId, error: error instanceof Error ? error.message : String(error) });
-      }));
+      if (settings.emailEnabled) notifications.push(sendAbsentAlert(context, record.studentId, 'email', attendanceSessionId));
+      if (settings.whatsappEnabled) notifications.push(sendAbsentAlert(context, record.studentId, 'whatsapp', attendanceSessionId));
     }
-    notifications.push(attendancePercentageForStudent(record.studentId).then((percentage) => {
-      if (percentage < threshold) return sendLowAttendanceAlert(context, record.studentId);
-      return undefined;
-    }).catch((error) => {
-      logger.warn('Low attendance alert was not sent.', { studentId: record.studentId, error: error instanceof Error ? error.message : String(error) });
+    notifications.push(attendancePercentageForStudent(record.studentId).then(async (percentage) => {
+      if (percentage >= threshold) return undefined;
+      const jobs: Promise<unknown>[] = [];
+      if (settings.whatsappEnabled) jobs.push(sendLowAttendanceAlert(context, record.studentId, 'whatsapp'));
+      if (settings.smsEnabled && percentage <= settings.criticalAttendancePct) jobs.push(sendLowAttendanceAlert(context, record.studentId, 'sms'));
+      if (settings.emailEnabled && percentage <= settings.severeAttendancePct) jobs.push(sendLowAttendanceAlert(context, record.studentId, 'email'));
+      if (jobs.length === 0) jobs.push(sendLowAttendanceAlert(context, record.studentId, 'email'));
+      return Promise.allSettled(jobs);
     }));
-    return notifications;
+    return notifications.map((task) => task.catch((error) => {
+      logger.warn('Attendance notification was not sent.', { studentId: record.studentId, error: error instanceof Error ? error.message : String(error) });
+    }));
   });
 
   await Promise.allSettled(tasks);
@@ -304,7 +308,6 @@ export const updateAttendanceSession = async (context: ProfessorContext, id: str
   const { userId, institutionId } = requireProfessor(context);
   const existing = await prisma.attendanceSession.findFirst({ where: { id, professorId: userId }, include: { records: true } });
   if (!existing) throw new AppError('Attendance session not found', StatusCodes.NOT_FOUND);
-  if (existing.isLocked) throw new AppError('Attendance session is already locked.', StatusCodes.CONFLICT);
   if (existing.isLocked) throw new AppError('Locked attendance sessions cannot be edited.', StatusCodes.CONFLICT);
   if (data.records) await assertRecordsBelongToClass(existing.courseId, existing.sectionId, data.records);
 

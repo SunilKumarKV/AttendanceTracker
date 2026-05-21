@@ -39,6 +39,9 @@ export interface NotificationLog {
 
 export interface NotificationSettings {
   minimumAttendancePct: number;
+  warningAttendancePct: number;
+  criticalAttendancePct: number;
+  severeAttendancePct: number;
   notificationEnabled: boolean;
   absentAlertsEnabled: boolean;
   lowAttendanceAlertsEnabled: boolean;
@@ -73,6 +76,12 @@ const queryString = (params: NotificationFilters) => {
 
 export const getNotificationLogs = (filters: NotificationFilters) => (
   apiClient<ApiResponse<Paginated<NotificationLog>>>(`/notifications${queryString(filters)}`)
+);
+
+export const runLowAttendanceSweep = () => (
+  apiClient<ApiResponse<{ processed: number; delivered: number; skipped: number; failed: number }>>('/notifications/run-low-attendance-sweep', {
+    method: 'POST',
+  })
 );
 
 export const sendTestNotification = (data: {
