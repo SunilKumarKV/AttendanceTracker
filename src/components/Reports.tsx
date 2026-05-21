@@ -1,446 +1,304 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  FileText, 
-  Download, 
-  Printer, 
-  Search, 
-  Calendar as CalendarIcon, 
-  BookOpen, 
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  BarChart3,
+  BookOpen,
+  Calendar as CalendarIcon,
+  Download,
+  FileText,
   Filter,
-  ArrowRight,
-  Loader2,
+  Printer,
   TrendingDown,
   TrendingUp,
-  Users,
-  CheckCircle2,
-  XCircle
 } from 'lucide-react';
-import { 
-  PieChart, 
-  Pie, 
-  Cell, 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Legend, 
-  ResponsiveContainer 
-} from 'recharts';
-import { toast, Toaster } from 'sonner';
-import Papa from 'papaparse';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-import { WEBHOOK_URL } from '@/src/config';
+import {
+  toast,
+  Toaster,
+} from 'sonner';
+import {
+  downloadReportCsv,
+  downloadReportPdf,
+  FilterOption,
+  getLowAttendanceReport,
+  getMonthlyReport,
+  getReportFilterOptions,
+  getReportOverview,
+  ReportFilters,
+  ReportOverview,
+  ReportStudent,
+} from '../api/reports';
+import { EmptyState, ErrorState, Loader } from './common';
 
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
-
-interface StudentReport {
-  studentName: string;
-  rollNo: string;
-  totalClasses: number;
-  present: number;
-  absent: number;
-  attendancePercentage: number;
-  status: 'Regular' | 'Shortage';
-}
-
-interface ReportData {
-  summary: {
-    totalClasses: number;
-    averageAttendance: number;
-    overallPresent: number;
-    overallAbsent: number;
-  };
-  students: StudentReport[];
-}
+const today = new Date().toISOString().slice(0, 10);
+const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+const ReportCharts = lazy(() => import('./ReportCharts').then((module) => ({ default: module.ReportCharts })));
 
 export const Reports: React.FC = () => {
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [subject, setSubject] = useState('All Subjects');
-  const [loading, setLoading] = useState(false);
-  const [reportData, setReportData] = useState<ReportData | null>(null);
+  const [filters, setFilters] = useState<ReportFilters>({ fromDate: thirtyDaysAgo, toDate: today, threshold: 75 });
+  const [classes, setClasses] = useState<FilterOption[]>([]);
+  const [subjects, setSubjects] = useState<FilterOption[]>([]);
+  const [sections, setSections] = useState<FilterOption[]>([]);
+  const [report, setReport] = useState<ReportOverview | null>(null);
+  const [lowAttendance, setLowAttendance] = useState<ReportStudent[]>([]);
+  const [view, setView] = useState<'overview' | 'low'>('overview');
+  const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState<'csv' | 'pdf' | null>(null);
+  const [error, setError] = useState('');
 
-  const subjects = ['All Subjects', 'Mathematics', 'Physics', 'Computer Science', 'Digital Electronics', 'Data Structures'];
+  const loadOptions = useCallback(async () => {
+    const options = await getReportFilterOptions();
+    setClasses(options.classes);
+    setSubjects(options.subjects);
+    setSections(options.sections);
+  }, []);
 
-  const fetchReport = async () => {
-    if (!fromDate || !toDate) {
-      toast.error('Please select both start and end dates');
+  const loadReport = useCallback(async (nextFilters = filters) => {
+    setLoading(true);
+    setError('');
+    try {
+      const [overviewResponse, lowResponse] = await Promise.all([
+        getReportOverview(nextFilters),
+        getLowAttendanceReport(nextFilters),
+      ]);
+      setReport(overviewResponse.data);
+      setLowAttendance(lowResponse.data.students);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not load reports.');
+    } finally {
+      setLoading(false);
+    }
+  }, [filters]);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        await loadOptions();
+        await loadReport();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Could not load reports.');
+        setLoading(false);
+      }
+    })();
+  }, [loadOptions, loadReport]);
+
+  const filteredSections = useMemo(
+    () => sections.filter((section) => !filters.classId || section.courseId === filters.classId),
+    [sections, filters.classId],
+  );
+
+  const visibleStudents = useMemo(() => (
+    view === 'low' ? lowAttendance : report?.students ?? []
+  ), [lowAttendance, report?.students, view]);
+
+  const pieData = useMemo(() => report ? [
+    { name: 'Present', value: report.summary.overallPresent },
+    { name: 'Late', value: report.summary.overallLate },
+    { name: 'Excused', value: report.summary.overallExcused },
+    { name: 'Absent', value: report.summary.overallAbsent },
+  ] : [], [report]);
+
+  const handleFilterChange = useCallback((key: keyof ReportFilters, value: string) => {
+    setFilters((current) => ({
+      ...current,
+      [key]: value || undefined,
+      ...(key === 'classId' ? { sectionId: undefined } : {}),
+    }));
+  }, []);
+
+  const applyFilters = () => {
+    void loadReport(filters);
+  };
+
+  const generateMonthly = async () => {
+    if (!filters.month) {
+      toast.error('Select a month first.');
       return;
     }
-
     setLoading(true);
+    setError('');
     try {
-      const response = await fetch(WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          action: 'getReport',
-          fromDate,
-          toDate,
-          subject
-        })
-      });
-
-      if (!response.ok) throw new Error('Failed to fetch report');
-
-      const data = await response.json();
-      setReportData(data);
-      toast.success('Report generated successfully');
+      const response = await getMonthlyReport(filters);
+      setReport(response.data);
+      setLowAttendance(response.data.students.filter((student) => student.attendancePercentage < (filters.threshold ?? 75)));
+      toast.success('Monthly report generated.');
     } catch (err) {
-      console.error('Error fetching report:', err);
-      toast.error('Could not generate report. Showing sample data.');
-      
-      // Sample data for demonstration
-      setReportData({
-        summary: {
-          totalClasses: 45,
-          averageAttendance: 78.5,
-          overallPresent: 353,
-          overallAbsent: 97
-        },
-        students: [
-          { studentName: 'John Doe', rollNo: 'CS101', totalClasses: 45, present: 40, absent: 5, attendancePercentage: 88.8, status: 'Regular' },
-          { studentName: 'Jane Smith', rollNo: 'CS102', totalClasses: 45, present: 30, absent: 15, attendancePercentage: 66.6, status: 'Shortage' },
-          { studentName: 'Michael Brown', rollNo: 'CS103', totalClasses: 45, present: 42, absent: 3, attendancePercentage: 93.3, status: 'Regular' },
-          { studentName: 'Sarah Lee', rollNo: 'CS104', totalClasses: 45, present: 32, absent: 13, attendancePercentage: 71.1, status: 'Shortage' },
-          { studentName: 'David Wilson', rollNo: 'CS105', totalClasses: 45, present: 38, absent: 7, attendancePercentage: 84.4, status: 'Regular' },
-          { studentName: 'Emma Watson', rollNo: 'CS106', totalClasses: 45, present: 25, absent: 20, attendancePercentage: 55.5, status: 'Shortage' },
-        ]
-      });
+      setError(err instanceof Error ? err.message : 'Could not generate monthly report.');
     } finally {
       setLoading(false);
     }
   };
 
-  const exportCSV = () => {
-    if (!reportData) return;
-
-    const csvData = (reportData.students || []).map(s => ({
-      'Student Name': s.studentName || 'Unknown',
-      'Roll No': s.rollNo || 'N/A',
-      'Total Classes': s.totalClasses || 0,
-      'Present': s.present || 0,
-      'Absent': s.absent || 0,
-      'Attendance %': `${s.attendancePercentage || 0}%`,
-      'Status': s.status || 'Regular'
-    }));
-
-    const csv = Papa.unparse(csvData);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `attendance_report_${subject}_${fromDate}_to_${toDate}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const downloadFile = async (type: 'csv' | 'pdf') => {
+    setDownloading(type);
+    try {
+      if (type === 'csv') await downloadReportCsv(filters);
+      else await downloadReportPdf(filters);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Download failed.');
+    } finally {
+      setDownloading(null);
+    }
   };
 
-  const exportPDF = () => {
-    window.print();
-  };
-
-  const pieData = useMemo(() => {
-    if (!reportData) return [];
-    return [
-      { name: 'Present', value: reportData.summary.overallPresent },
-      { name: 'Absent', value: reportData.summary.overallAbsent },
-    ];
-  }, [reportData]);
-
-  const COLORS = ['#10b981', '#ef4444'];
+  if (loading && !report) return <Loader label="Loading reports..." />;
+  if (error && !report) return <ErrorState title="Reports unavailable" message={error} onAction={() => void loadReport()} />;
 
   return (
     <div className="max-w-7xl mx-auto pb-20 print:p-0">
       <Toaster position="top-right" />
-      
-      {/* Header - Hidden in Print */}
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 print:hidden">
         <div>
           <h2 className="text-3xl font-bold text-slate-900">Attendance Reports</h2>
-          <p className="text-slate-500 font-medium">Generate detailed attendance analytics and summaries.</p>
+          <p className="text-slate-500 font-medium">Database-backed attendance summaries, low attendance lists, and exports.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={exportPDF}
-            disabled={!reportData}
-            className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-xl font-bold shadow-sm hover:bg-slate-50 transition-all active:scale-95 disabled:opacity-50"
-          >
+        <div className="flex flex-wrap items-center gap-3">
+          <button onClick={() => window.print()} disabled={!report} className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-xl font-bold shadow-sm hover:bg-slate-50 disabled:opacity-50">
             <Printer size={18} />
-            Export PDF
+            Print
           </button>
-          <button 
-            onClick={exportCSV}
-            disabled={!reportData}
-            className="flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-slate-900/10 hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50"
-          >
+          <button onClick={() => void downloadFile('pdf')} disabled={!report || downloading !== null} className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-xl font-bold shadow-sm hover:bg-slate-50 disabled:opacity-50">
+            <FileText size={18} />
+            {downloading === 'pdf' ? 'Exporting...' : 'PDF'}
+          </button>
+          <button onClick={() => void downloadFile('csv')} disabled={!report || downloading !== null} className="flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-slate-900/10 hover:bg-slate-800 disabled:opacity-50">
             <Download size={18} />
-            Export CSV
+            {downloading === 'csv' ? 'Exporting...' : 'CSV'}
           </button>
         </div>
       </div>
 
-      {/* Filters - Hidden in Print */}
-      <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm mb-8 print:hidden">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+      <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm mb-8 print:hidden">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-end">
+          <DateField label="From Date" value={filters.fromDate ?? ''} onChange={(value) => handleFilterChange('fromDate', value)} />
+          <DateField label="To Date" value={filters.toDate ?? ''} onChange={(value) => handleFilterChange('toDate', value)} />
+          <SelectField label="Class" value={filters.classId ?? ''} onChange={(value) => handleFilterChange('classId', value)} options={classes} allLabel="All Classes" />
+          <SelectField label="Section" value={filters.sectionId ?? ''} onChange={(value) => handleFilterChange('sectionId', value)} options={filteredSections} allLabel="All Sections" />
+          <SelectField label="Subject" value={filters.subjectId ?? ''} onChange={(value) => handleFilterChange('subjectId', value)} options={subjects} allLabel="All Subjects" />
           <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">From Date</label>
-            <div className="relative">
-              <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input 
-                type="date" 
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none transition-all font-bold text-slate-700"
-              />
-            </div>
+            <label htmlFor="report-threshold" className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Threshold</label>
+            <input id="report-threshold" type="number" min={0} max={100} value={filters.threshold ?? 75} onChange={(event) => setFilters((current) => ({ ...current, threshold: Number(event.target.value) }))} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none font-bold text-slate-700" />
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">To Date</label>
-            <div className="relative">
-              <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input 
-                type="date" 
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none transition-all font-bold text-slate-700"
-              />
-            </div>
+            <label htmlFor="report-month" className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Monthly Report</label>
+            <input id="report-month" type="month" value={filters.month ?? ''} onChange={(event) => handleFilterChange('month', event.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none font-bold text-slate-700" />
           </div>
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Subject</label>
-            <div className="relative">
-              <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <select 
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none transition-all font-bold text-slate-700 appearance-none bg-white"
-              >
-                {subjects.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
+          <div className="flex gap-3">
+            <button onClick={applyFilters} disabled={loading} className="flex-1 bg-blue-600 text-white h-[50px] rounded-xl font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 flex items-center justify-center gap-2 disabled:opacity-50">
+              <Filter size={20} />
+              Apply
+            </button>
+            <button onClick={() => void generateMonthly()} disabled={loading} className="flex-1 bg-slate-900 text-white h-[50px] rounded-xl font-bold hover:bg-slate-800 disabled:opacity-50">
+              Month
+            </button>
           </div>
-          <button 
-            onClick={fetchReport}
-            disabled={loading}
-            className="bg-blue-600 text-white h-[50px] rounded-xl font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all active:scale-95 flex items-center justify-center gap-2"
-          >
-            {loading ? <Loader2 className="animate-spin" size={20} /> : <Filter size={20} />}
-            Apply Filters
-          </button>
         </div>
       </div>
 
-      {reportData ? (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          {/* Summary Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm flex items-center gap-6">
-              <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
-                <BookOpen size={32} />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Total Classes</p>
-                <h3 className="text-4xl font-black text-slate-900">{reportData.summary.totalClasses}</h3>
-              </div>
-            </div>
-            <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm flex items-center gap-6">
-              <div className={cn(
-                "w-16 h-16 rounded-2xl flex items-center justify-center",
-                reportData.summary.averageAttendance >= 75 ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
-              )}>
-                {reportData.summary.averageAttendance >= 75 ? <TrendingUp size={32} /> : <TrendingDown size={32} />}
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Average Attendance</p>
-                <h3 className="text-4xl font-black text-slate-900">{reportData.summary.averageAttendance}%</h3>
-              </div>
-            </div>
+      {error && <div className="mb-6 print:hidden"><ErrorState title="Could not refresh reports" message={error} onAction={() => void loadReport()} /></div>}
+
+      {report ? (
+        <div className="space-y-8">
+          <div className="hidden print:block mb-8 border-b-2 border-slate-900 pb-5">
+            <h1 className="text-3xl font-black text-slate-900">AttendanceTracker Report</h1>
+            <p className="text-slate-600 font-bold mt-1">Period: {filters.fromDate || 'Start'} to {filters.toDate || 'Today'} · Generated {new Date().toLocaleDateString()}</p>
           </div>
 
-          {/* Table */}
-          <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-slate-900">Student Attendance Summary</h3>
-              <div className="flex gap-4 text-xs font-bold">
-                <div className="flex items-center gap-1.5 text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
-                  <CheckCircle2 size={12} /> Regular (≥75%)
-                </div>
-                <div className="flex items-center gap-1.5 text-red-600 bg-red-50 px-3 py-1 rounded-full">
-                  <XCircle size={12} /> Shortage (&lt;75%)
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <Stat icon={<BookOpen />} label="Sessions" value={report.summary.sessions} />
+            <Stat icon={<BarChart3 />} label="Students" value={report.summary.studentCount} />
+            <Stat icon={report.summary.averageAttendance >= (filters.threshold ?? 75) ? <TrendingUp /> : <TrendingDown />} label="Average" value={`${report.summary.averageAttendance}%`} />
+            <Stat icon={<TrendingDown />} label="Low Attendance" value={report.summary.lowAttendanceCount} tone="danger" />
+          </div>
+
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden print:shadow-none print:border-slate-300">
+            <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Student Attendance Summary</h3>
+                <p className="text-sm text-slate-500">{view === 'low' ? 'Students below the selected threshold.' : 'All active students matching the selected filters.'}</p>
+              </div>
+              <div className="flex bg-slate-100 p-1 rounded-xl">
+                <button onClick={() => setView('overview')} className={`px-4 py-2 rounded-lg font-bold text-sm ${view === 'overview' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>Overview</button>
+                <button onClick={() => setView('low')} className={`px-4 py-2 rounded-lg font-bold text-sm ${view === 'low' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500'}`}>Low Attendance</button>
               </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50/50 text-slate-400 text-xs font-bold uppercase tracking-widest border-b border-slate-100">
-                    <th className="px-6 py-5">Student Name</th>
-                    <th className="px-6 py-5">Roll No</th>
-                    <th className="px-6 py-5 text-center">Total Classes</th>
-                    <th className="px-6 py-5 text-center">Present</th>
-                    <th className="px-6 py-5 text-center">Absent</th>
-                    <th className="px-6 py-5 text-center">Attendance %</th>
-                    <th className="px-6 py-5">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {reportData.students.map((student, idx) => (
-                    <tr 
-                      key={idx} 
-                      className={cn(
-                        "hover:bg-slate-50/50 transition-colors",
-                        student.attendancePercentage < 75 && "bg-red-50/30"
-                      )}
-                    >
-                      <td className="px-6 py-4 font-bold text-slate-900">{student.studentName}</td>
-                      <td className="px-6 py-4 font-mono text-sm text-slate-500">{student.rollNo}</td>
-                      <td className="px-6 py-4 text-center font-medium text-slate-600">{student.totalClasses}</td>
-                      <td className="px-6 py-4 text-center font-bold text-emerald-600">{student.present}</td>
-                      <td className="px-6 py-4 text-center font-bold text-red-500">{student.absent}</td>
-                      <td className="px-6 py-4 text-center">
-                        <div className="flex flex-col items-center gap-1">
-                          <span className={cn(
-                            "font-black text-lg",
-                            student.attendancePercentage < 75 ? "text-red-600" : "text-slate-900"
-                          )}>
-                            {student.attendancePercentage}%
-                          </span>
-                          <div className="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div 
-                              className={cn(
-                                "h-full rounded-full transition-all duration-1000",
-                                student.attendancePercentage < 75 ? "bg-red-500" : "bg-emerald-500"
-                              )} 
-                              style={{ width: `${student.attendancePercentage}%` }}
-                            />
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={cn(
-                          "px-3 py-1 rounded-full text-xs font-bold",
-                          student.status === 'Regular' ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
-                        )}>
-                          {student.status}
-                        </span>
-                      </td>
+            {visibleStudents.length === 0 ? (
+              <div className="p-8"><EmptyState title="No report data" message="No attendance records match the selected filters." /></div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/50 text-slate-400 text-xs font-bold uppercase tracking-widest border-b border-slate-100">
+                      <th className="px-6 py-5">Student</th>
+                      <th className="px-6 py-5">Class</th>
+                      <th className="px-6 py-5 text-center">Total</th>
+                      <th className="px-6 py-5 text-center">Present</th>
+                      <th className="px-6 py-5 text-center">Late</th>
+                      <th className="px-6 py-5 text-center">Absent</th>
+                      <th className="px-6 py-5 text-center">Attendance</th>
+                      <th className="px-6 py-5">Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {visibleStudents.map((student) => (
+                      <tr key={student.studentId} className={student.status === 'Shortage' ? 'bg-red-50/30' : ''}>
+                        <td className="px-6 py-4">
+                          <p className="font-bold text-slate-900">{student.studentName}</p>
+                          <p className="font-mono text-xs text-slate-500">{student.rollNo}</p>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-600">{student.className}{student.sectionName ? ` · ${student.sectionName}` : ''}</td>
+                        <td className="px-6 py-4 text-center font-bold">{student.totalClasses}</td>
+                        <td className="px-6 py-4 text-center font-bold text-emerald-600">{student.present}</td>
+                        <td className="px-6 py-4 text-center font-bold text-blue-600">{student.late}</td>
+                        <td className="px-6 py-4 text-center font-bold text-red-500">{student.absent}</td>
+                        <td className="px-6 py-4 text-center font-black text-slate-900">{student.attendancePercentage}%</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${student.status === 'Regular' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>{student.status}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
-          {/* Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm lg:col-span-1">
-              <h3 className="text-xl font-bold text-slate-900 mb-6">Overall Distribution</h3>
-              <div className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                    />
-                    <Legend verticalAlign="bottom" height={36}/>
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm lg:col-span-2">
-              <h3 className="text-xl font-bold text-slate-900 mb-6">Student Attendance Comparison</h3>
-              <div className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={reportData.students}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis 
-                      dataKey="studentName" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }}
-                    />
-                    <YAxis 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }}
-                      domain={[0, 100]}
-                    />
-                    <Tooltip 
-                      cursor={{ fill: '#f8fafc' }}
-                      contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                    />
-                    <Bar 
-                      dataKey="attendancePercentage" 
-                      name="Attendance %"
-                      radius={[6, 6, 0, 0]}
-                    >
-                      {reportData.students.map((entry, index) => (
-                        <Cell 
-                          key={`cell-${index}`} 
-                          fill={entry.attendancePercentage < 75 ? '#ef4444' : '#3b82f6'} 
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
+          <Suspense fallback={<Loader label="Loading charts..." />}>
+            <ReportCharts pieData={pieData} visibleStudents={visibleStudents} />
+          </Suspense>
         </div>
       ) : (
-        <div className="bg-white p-20 rounded-[40px] border border-slate-100 shadow-sm text-center">
-          <div className="max-w-md mx-auto space-y-6">
-            <div className="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 mx-auto">
-              <FileText size={48} />
-            </div>
-            <div>
-              <h3 className="text-2xl font-bold text-slate-900 mb-2">Generate Your Report</h3>
-              <p className="text-slate-500 font-medium">Select a date range and subject above to view detailed attendance analytics and student summaries.</p>
-            </div>
-            <div className="flex items-center justify-center gap-4 text-slate-400 text-sm font-bold uppercase tracking-widest">
-              <span>Select Date</span>
-              <ArrowRight size={16} />
-              <span>Choose Subject</span>
-              <ArrowRight size={16} />
-              <span>Apply</span>
-            </div>
-          </div>
-        </div>
+        <EmptyState title="No report generated" message="Apply filters to generate an attendance report." />
       )}
-
-      {/* Print-only Header */}
-      <div className="hidden print:block mb-10">
-        <div className="flex justify-between items-end border-b-2 border-slate-900 pb-6">
-          <div>
-            <h1 className="text-4xl font-black text-slate-900">AttendancePro Report</h1>
-            <p className="text-slate-500 font-bold mt-1">Subject: {subject} | Period: {fromDate} to {toDate}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Generated On</p>
-            <p className="text-lg font-bold text-slate-900">{new Date().toLocaleDateString()}</p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };
+
+const DateField: React.FC<{ label: string; value: string; onChange: (value: string) => void }> = ({ label, value, onChange }) => (
+  <div className="space-y-2">
+    <label htmlFor={`report-${label.toLowerCase().replace(/\s+/g, '-')}`} className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">{label}</label>
+    <div className="relative">
+      <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+      <input id={`report-${label.toLowerCase().replace(/\s+/g, '-')}`} type="date" value={value} onChange={(event) => onChange(event.target.value)} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none font-bold text-slate-700" />
+    </div>
+  </div>
+);
+
+const SelectField: React.FC<{ label: string; value: string; options: FilterOption[]; allLabel: string; onChange: (value: string) => void }> = ({ label, value, options, allLabel, onChange }) => (
+  <div className="space-y-2">
+    <label htmlFor={`report-${label.toLowerCase().replace(/\s+/g, '-')}`} className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">{label}</label>
+    <select id={`report-${label.toLowerCase().replace(/\s+/g, '-')}`} value={value} onChange={(event) => onChange(event.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none font-bold text-slate-700 bg-white">
+      <option value="">{allLabel}</option>
+      {options.map((option) => <option key={option.id} value={option.id}>{option.name}{option.code ? ` (${option.code})` : ''}</option>)}
+    </select>
+  </div>
+);
+
+const Stat: React.FC<{ icon: React.ReactNode; label: string; value: React.ReactNode; tone?: 'danger' }> = ({ icon, label, value, tone }) => (
+  <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm print:shadow-none print:border-slate-300">
+    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 ${tone === 'danger' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
+      {icon}
+    </div>
+    <p className="text-sm font-bold uppercase tracking-wider text-slate-400">{label}</p>
+    <p className="text-4xl font-black text-slate-900 mt-2">{value}</p>
+  </div>
+);

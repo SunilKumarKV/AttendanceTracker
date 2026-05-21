@@ -1,16 +1,22 @@
-export type Role = 'Admin' | 'Professor';
+export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'PROFESSOR';
+export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED';
 
 export interface Student {
+  id?: string;
+  courseId?: string;
+  sectionId?: string;
   name: string;
   rollNo: string;
   phone: string;
   parentPhone: string;
   subject?: string;
   attendancePercentage?: number;
-  status?: 'Present' | 'Absent';
+  status?: AttendanceStatus;
 }
 
 export interface User {
+  id?: string;
+  institutionId?: string | null;
   name: string;
   email: string;
   role: Role;

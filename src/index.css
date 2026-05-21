@@ -9,3 +9,12 @@ body {
   font-family: var(--font-sans);
   @apply bg-slate-50 text-slate-900 antialiased;
 }
+
+:focus-visible {
+  outline: 3px solid rgb(37 99 235 / 0.45);
+  outline-offset: 2px;
+}
+
+.dark body {
+  @apply bg-slate-950 text-slate-100;
+}

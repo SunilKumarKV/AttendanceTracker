@@ -1,0 +1,7 @@
+dist
+coverage
+node_modules
+backend/dist
+backend/coverage
+package-lock.json
+backend/package-lock.json

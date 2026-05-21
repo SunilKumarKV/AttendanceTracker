@@ -21,81 +21,24 @@ import {
   Cell 
 } from 'recharts';
 import { toast, Toaster } from 'sonner';
-import { WEBHOOK_URL } from '@/src/config';
-
-interface DashboardData {
-  totalStudents: number;
-  presentToday: number;
-  absentToday: number;
-  below75Count: number;
-  chartData: { name: string; percentage: number }[];
-  atRiskStudents: { name: string; rollNo: string; phone: string; attendancePercentage: number }[];
-  recentActivity: { date: string; subject: string; professor: string; present: number; absent: number }[];
-}
+import { getAdminDashboard, DashboardData } from '../api/admin';
+import { EmptyState, ErrorState } from './common';
 
 export const Dashboard: React.FC = () => {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [sendingAlert, setSendingAlert] = useState<string | null>(null);
 
   const fetchDashboardData = async () => {
     setLoading(true);
+    setError('');
     try {
-      const response = await fetch(WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'getDashboardData' })
-      });
-      
-      if (!response.ok) throw new Error('Failed to fetch dashboard data');
-      
-      const result = await response.json();
-      
-      // Ensure result has all required properties with defaults
-      const sanitizedData: DashboardData = {
-        totalStudents: result.totalStudents || 0,
-        presentToday: result.presentToday || 0,
-        absentToday: result.absentToday || 0,
-        below75Count: result.below75Count || 0,
-        chartData: Array.isArray(result.chartData) ? result.chartData : [],
-        atRiskStudents: Array.isArray(result.atRiskStudents) ? result.atRiskStudents : [],
-        recentActivity: Array.isArray(result.recentActivity) ? result.recentActivity : []
-      };
-      
-      setData(sanitizedData);
+      const result = await getAdminDashboard();
+      setData(result.data);
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
-      toast.error('Could not load dashboard data. Showing sample data.');
-      
-      // Mock data for demonstration if fetch fails
-      setData({
-        totalStudents: 120,
-        presentToday: 98,
-        absentToday: 22,
-        below75Count: 15,
-        chartData: [
-          { name: 'John D.', percentage: 85 },
-          { name: 'Jane S.', percentage: 65 },
-          { name: 'Mike R.', percentage: 92 },
-          { name: 'Sarah L.', percentage: 70 },
-          { name: 'Chris P.', percentage: 88 },
-          { name: 'Emma W.', percentage: 62 },
-          { name: 'Alex M.', percentage: 95 },
-          { name: 'Lisa K.', percentage: 78 },
-        ],
-        atRiskStudents: [
-          { name: 'Jane Smith', rollNo: 'CS102', phone: '9876543210', attendancePercentage: 65 },
-          { name: 'Sarah Lee', rollNo: 'CS104', phone: '9876543212', attendancePercentage: 70 },
-          { name: 'Emma Watson', rollNo: 'CS106', phone: '9876543214', attendancePercentage: 62 },
-        ],
-        recentActivity: [
-          { date: '26 Mar 2026', subject: 'Computer Networks', professor: 'Dr. Sharma', present: 42, absent: 3 },
-          { date: '25 Mar 2026', subject: 'Operating Systems', professor: 'Prof. Verma', present: 38, absent: 7 },
-          { date: '25 Mar 2026', subject: 'Database Systems', professor: 'Dr. Gupta', present: 45, absent: 0 },
-          { date: '24 Mar 2026', subject: 'Software Engineering', professor: 'Prof. Reddy', present: 35, absent: 10 },
-          { date: '24 Mar 2026', subject: 'Artificial Intelligence', professor: 'Dr. Iyer', present: 40, absent: 5 },
-        ]
-      });
+      setError(err instanceof Error ? err.message : 'Could not load dashboard data.');
     } finally {
       setLoading(false);
     }
@@ -108,20 +51,7 @@ export const Dashboard: React.FC = () => {
   const handleSendAlert = async (student: DashboardData['atRiskStudents'][0]) => {
     setSendingAlert(student.rollNo);
     try {
-      const response = await fetch(WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'sendAlert',
-          studentName: student.name,
-          phone: student.phone,
-          percentage: student.attendancePercentage
-        })
-      });
-      
-      if (!response.ok) throw new Error('Failed to send alert');
-      
-      toast.success(`Alert sent to ${student.name}'s parents!`);
+      toast.info('Notifications are not connected in this phase.');
     } catch (err) {
       console.error('Error sending alert:', err);
       toast.error('Failed to send alert.');
@@ -147,7 +77,8 @@ export const Dashboard: React.FC = () => {
     );
   }
 
-  if (!data) return null;
+  if (error) return <ErrorState title="Dashboard unavailable" message={error} onAction={fetchDashboardData} />;
+  if (!data) return <EmptyState title="No dashboard data" message="Add students and attendance sessions to populate the dashboard." />;
 
   return (
     <div className="space-y-8 pb-12">
