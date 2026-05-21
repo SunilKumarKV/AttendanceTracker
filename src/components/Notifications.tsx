@@ -14,7 +14,6 @@ import {
   Send,
   XCircle,
 } from 'lucide-react';
-import Papa from 'papaparse';
 import { toast, Toaster } from 'sonner';
 import { getNotificationLogs, NotificationFilters, NotificationLog, sendTestNotification } from '../api/notifications';
 import { ErrorState } from './common';
@@ -51,11 +50,12 @@ export const Notifications: React.FC = () => {
     setFilters((current) => ({ ...current, [key]: value === 'All' || value === '' ? undefined : value, page: 1 }));
   };
 
-  const exportToCSV = () => {
+  const exportToCSV = async () => {
     if (notifications.length === 0) {
       toast.error('No data to export');
       return;
     }
+    const { default: Papa } = await import('papaparse');
     const csv = Papa.unparse(notifications.map((item) => ({
       Date: new Date(item.createdAt).toLocaleString(),
       Channel: item.channel,
@@ -117,7 +117,7 @@ export const Notifications: React.FC = () => {
             {sendingTest ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
             Send Test
           </button>
-          <button onClick={exportToCSV} className="flex items-center gap-2 bg-slate-900 text-white px-5 py-3 rounded-2xl font-bold shadow-lg shadow-slate-900/10 hover:bg-slate-800">
+          <button onClick={() => void exportToCSV()} className="flex items-center gap-2 bg-slate-900 text-white px-5 py-3 rounded-2xl font-bold shadow-lg shadow-slate-900/10 hover:bg-slate-800">
             <Download size={18} />
             Export CSV
           </button>

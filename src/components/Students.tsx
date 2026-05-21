@@ -12,9 +12,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import Papa from 'papaparse';
 import { toast, Toaster } from 'sonner';
-import * as XLSX from 'xlsx';
 import { createStudent, deleteStudent, getStudents, updateStudent } from '../api/admin';
 import { ConfirmDialog, EmptyState, ErrorState, Pagination, TableSkeleton } from './common';
 import { Student } from '../types';
@@ -151,7 +149,7 @@ export const Students: React.FC = () => {
   const parseFile = (file: File) => {
     const extension = file.name.split('.').pop()?.toLowerCase();
     if (extension === 'csv') {
-      Papa.parse(file, {
+      void import('papaparse').then(({ default: Papa }) => Papa.parse(file, {
         header: true,
         skipEmptyLines: 'greedy',
         complete: (results) => {
@@ -162,13 +160,14 @@ export const Students: React.FC = () => {
           }
         },
         error: () => toast.error('Error parsing CSV file.'),
-      });
+      }));
       return;
     }
     if (extension === 'xlsx' || extension === 'xls') {
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         try {
+          const XLSX = await import('xlsx');
           const workbook = XLSX.read(new Uint8Array(e.target?.result as ArrayBuffer), { type: 'array' });
           const worksheet = workbook.Sheets[workbook.SheetNames[0]];
           setPreviewData((XLSX.utils.sheet_to_json(worksheet, { defval: '' }) as any[]).filter(row => !Object.values(row).every(v => !v)).map(validateImportRow));
