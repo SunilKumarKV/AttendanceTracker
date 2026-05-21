@@ -1,5 +1,10 @@
 import bcrypt from 'bcryptjs';
+import { randomBytes } from 'node:crypto';
 import { prisma } from '../src/config/prisma.js';
+
+if (process.env.NODE_ENV === 'production') {
+  throw new Error('Refusing to run development demo seed in production. Use npm run seed:first-admin instead.');
+}
 
 const institutionSeed = {
   name: 'AttendanceTracker Demo Institution',
@@ -7,7 +12,7 @@ const institutionSeed = {
   email: 'admin@attendancetracker.local',
 };
 
-const defaultPassword = 'Password@123';
+const defaultPassword = process.env.DEV_SEED_PASSWORD ?? randomBytes(18).toString('base64url');
 
 async function main() {
   const passwordHash = await bcrypt.hash(defaultPassword, 12);

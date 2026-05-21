@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as adminController from '../controllers/admin.controller.js';
 import { adminOnly } from '../middleware/adminOnly.js';
+import { writeRateLimiter } from '../middleware/rateLimit.js';
 import { validateBody } from '../middleware/validateRequest.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import {
@@ -23,6 +24,7 @@ import {
 export const adminRouter = Router();
 
 adminRouter.use(adminOnly);
+adminRouter.use(writeRateLimiter);
 
 adminRouter.get('/admin/dashboard', asyncHandler(adminController.dashboard));
 

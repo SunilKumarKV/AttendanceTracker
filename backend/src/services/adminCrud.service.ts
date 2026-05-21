@@ -1,6 +1,7 @@
 import { Prisma, Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { StatusCodes } from 'http-status-codes';
+import { randomBytes } from 'node:crypto';
 import { prisma } from '../config/prisma.js';
 import { requireInstitutionId, ensureDefaultAcademicScope, ensureSubject } from './adminContext.service.js';
 import { writeAuditLog } from './audit.service.js';
@@ -12,7 +13,7 @@ interface AdminContext {
   institutionId?: string | null;
 }
 
-const defaultProfessorPassword = 'Password@123';
+const createTemporaryPassword = () => randomBytes(18).toString('base64url');
 
 const professorSelect = {
   id: true,
@@ -116,7 +117,7 @@ export const listProfessors = async (context: AdminContext, query: unknown) => {
 
 export const createProfessor = async (context: AdminContext, data: any) => {
   const institutionId = requireInstitutionId(context.institutionId);
-  const passwordHash = await bcrypt.hash(data.password ?? defaultProfessorPassword, 12);
+  const passwordHash = await bcrypt.hash(data.password ?? createTemporaryPassword(), 12);
   const professor = await prisma.user.create({
     data: {
       institutionId,

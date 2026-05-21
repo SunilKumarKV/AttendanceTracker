@@ -6,6 +6,7 @@ import { StatusCodes } from 'http-status-codes';
 import { env } from '../config/env.js';
 import { prisma } from '../config/prisma.js';
 import { AppError } from '../utils/AppError.js';
+import { trackServerEvent } from '../utils/analytics.js';
 
 type PublicUser = Pick<User, 'id' | 'institutionId' | 'name' | 'email' | 'role'>;
 
@@ -88,6 +89,7 @@ export const login = async (email: string, password: string) => {
     where: { id: user.id },
     data: { lastLoginAt: new Date() },
   });
+  trackServerEvent('auth.login_succeeded', { userId: user.id, role: user.role });
 
   const publicUser = toPublicUser(user);
 

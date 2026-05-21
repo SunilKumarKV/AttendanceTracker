@@ -1,18 +1,22 @@
 import { app } from './app.js';
 import { env } from './config/env.js';
 import { prisma } from './config/prisma.js';
+import { logger } from './utils/logger.js';
+import { initMonitoring } from './utils/monitoring.js';
+
+initMonitoring();
 
 const server = app.listen(env.port, () => {
-  console.log(`API server listening on port ${env.port}`);
+  logger.info('API server listening.', { port: env.port, nodeEnv: env.nodeEnv });
 });
 
 server.on('error', (error) => {
-  console.error('Failed to start API server:', error);
+  logger.error('Failed to start API server.', { error: error.message });
   process.exit(1);
 });
 
 const shutdown = async (signal: string) => {
-  console.log(`${signal} received. Shutting down API server.`);
+  logger.info('Shutdown signal received.', { signal });
 
   server.close(async () => {
     await prisma.$disconnect();
