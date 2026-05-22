@@ -1,29 +1,9 @@
 {
-  "compilerOptions": {
-    "target": "ES2022",
-    "experimentalDecorators": true,
-    "useDefineForClassFields": false,
-    "module": "ESNext",
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
-    "skipLibCheck": true,
-    "moduleResolution": "bundler",
-    "isolatedModules": true,
-    "moduleDetection": "force",
-    "allowJs": true,
-    "jsx": "react-jsx",
-    "paths": {
-      "@/*": [
-        "./*"
-      ]
-    },
-    "allowImportingTsExtensions": true,
-    "noEmit": true,
-    "types": ["vitest/globals", "node"]
-  },
-  "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"],
-  "exclude": ["backend", "dist", "node_modules"]
+  "files": [],
+  "references": [
+    { "path": "apps/web" },
+    { "path": "apps/api" },
+    { "path": "packages/shared" },
+    { "path": "packages/ui" }
+  ]
 }

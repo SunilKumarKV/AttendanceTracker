@@ -1,0 +1,31 @@
+import { Router, type Router as ExpressRouter } from 'express';
+import { Role } from '@prisma/client';
+import * as controller from '../controllers/libraryLab.controller.js';
+import { authenticate, requireRole } from '../middleware/auth.js';
+import { writeRateLimiter } from '../middleware/rateLimit.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+
+export const libraryLabRouter: ExpressRouter = Router();
+const allPortalRoles = [Role.ADMIN, Role.SUPER_ADMIN, Role.HOD, Role.TEACHER, Role.PROFESSOR, Role.STUDENT, Role.PARENT, Role.STAFF];
+const operatorRoles = [Role.ADMIN, Role.SUPER_ADMIN, Role.HOD, Role.STAFF];
+
+libraryLabRouter.use(authenticate);
+libraryLabRouter.get('/library-lab/dashboard', requireRole(...allPortalRoles), asyncHandler(controller.dashboard));
+libraryLabRouter.get('/library-lab/books', requireRole(...allPortalRoles), asyncHandler(controller.listBooks));
+libraryLabRouter.post('/library-lab/books', requireRole(...operatorRoles), writeRateLimiter, asyncHandler(controller.createBook));
+libraryLabRouter.patch('/library-lab/books/:id', requireRole(...operatorRoles), writeRateLimiter, asyncHandler(controller.updateBook));
+libraryLabRouter.delete('/library-lab/books/:id', requireRole(...operatorRoles), writeRateLimiter, asyncHandler(controller.deleteBook));
+libraryLabRouter.get('/library-lab/book-issues', requireRole(...operatorRoles), asyncHandler(controller.listBookIssues));
+libraryLabRouter.post('/library-lab/book-issues', requireRole(...operatorRoles), writeRateLimiter, asyncHandler(controller.issueBook));
+libraryLabRouter.post('/library-lab/book-issues/:id/return', requireRole(...operatorRoles), writeRateLimiter, asyncHandler(controller.returnBook));
+libraryLabRouter.get('/library-lab/equipment', requireRole(...allPortalRoles), asyncHandler(controller.listEquipment));
+libraryLabRouter.post('/library-lab/equipment', requireRole(...operatorRoles), writeRateLimiter, asyncHandler(controller.createEquipment));
+libraryLabRouter.patch('/library-lab/equipment/:id', requireRole(...operatorRoles), writeRateLimiter, asyncHandler(controller.updateEquipment));
+libraryLabRouter.delete('/library-lab/equipment/:id', requireRole(...operatorRoles), writeRateLimiter, asyncHandler(controller.deleteEquipment));
+libraryLabRouter.get('/library-lab/equipment-issues', requireRole(...operatorRoles), asyncHandler(controller.listEquipmentIssues));
+libraryLabRouter.post('/library-lab/equipment-issues', requireRole(...operatorRoles), writeRateLimiter, asyncHandler(controller.issueEquipment));
+libraryLabRouter.post('/library-lab/equipment-issues/:id/return', requireRole(...operatorRoles), writeRateLimiter, asyncHandler(controller.returnEquipment));
+libraryLabRouter.get('/library-lab/maintenance', requireRole(...operatorRoles), asyncHandler(controller.listMaintenance));
+libraryLabRouter.post('/library-lab/maintenance', requireRole(...operatorRoles), writeRateLimiter, asyncHandler(controller.createMaintenance));
+libraryLabRouter.patch('/library-lab/maintenance/:id', requireRole(...operatorRoles), writeRateLimiter, asyncHandler(controller.updateMaintenance));
+libraryLabRouter.get('/library-lab/reports/export', requireRole(...operatorRoles), asyncHandler(controller.exportReport));

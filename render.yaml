@@ -3,7 +3,7 @@ services:
     name: attendance-tracker-api
     runtime: node
     plan: starter
-    rootDir: backend
+    rootDir: apps/api
     buildCommand: pnpm install --frozen-lockfile && pnpm run prisma:generate && pnpm run build && pnpm run prisma:deploy
     startCommand: pnpm run start
     healthCheckPath: /api/health

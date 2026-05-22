@@ -1,7 +1,7 @@
-dist
-coverage
 node_modules
-backend/dist
-backend/coverage
+apps/web/dist
+apps/api/dist
+coverage
+playwright-report
+test-results
 pnpm-lock.yaml
-backend/pnpm-lock.yaml

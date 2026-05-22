@@ -1,0 +1,34 @@
+import { Router, type Router as ExpressRouter } from 'express';
+import { adminRouter } from './admin.routes.js';
+import { analyticsRouter } from './analytics.routes.js';
+import { academicOpsRouter } from './academicOps.routes.js';
+import { behaviourRouter } from './behaviour.routes.js';
+import { authRouter } from './auth.routes.js';
+import { healthRouter } from './health.routes.js';
+import { libraryLabRouter } from './libraryLab.routes.js';
+import { notificationRouter } from './notification.routes.js';
+import { portalRouter } from './portal.routes.js';
+import { platformRouter } from './platform.routes.js';
+import { professorRouter } from './professor.routes.js';
+import { profileRouter } from './profile.routes.js';
+import { reportRouter } from './report.routes.js';
+import { settingsRouter } from './settings.routes.js';
+import { staffRouter } from './staff.routes.js';
+
+export const apiRouter: ExpressRouter = Router();
+
+apiRouter.use('/auth', authRouter);
+apiRouter.use(academicOpsRouter);
+apiRouter.use(analyticsRouter);
+apiRouter.use(behaviourRouter);
+apiRouter.use(healthRouter);
+apiRouter.use(libraryLabRouter);
+apiRouter.use(profileRouter);
+apiRouter.use(professorRouter);
+apiRouter.use(reportRouter);
+apiRouter.use(notificationRouter);
+apiRouter.use(portalRouter);
+apiRouter.use(platformRouter);
+apiRouter.use(settingsRouter);
+apiRouter.use(staffRouter);
+apiRouter.use(adminRouter);
