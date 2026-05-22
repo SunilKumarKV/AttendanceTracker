@@ -6,6 +6,7 @@ import { AppError } from '../utils/AppError.js';
 import { uploadProvider } from './upload.service.js';
 import { toSettingsObject } from './settings.service.js';
 import { profilePasswordSchema, profileUpdateSchema } from '../validators/profile.validator.js';
+import { writeAuditLog } from './audit.service.js';
 
 interface ProfileContext {
   userId?: string;
@@ -143,13 +144,14 @@ export const updateProfile = async (context: ProfileContext, rawData: unknown) =
     ...(data.preferences !== undefined ? { preferences: data.preferences } : {}),
   });
 
+  await writeAuditLog({ actorId: userId, institutionId: existing.institutionId, action: 'UPDATE', entityType: 'UserProfile', entityId: userId }).catch(() => undefined);
   return toProfileDto(userId);
 };
 
 export const updatePassword = async (context: ProfileContext, rawData: unknown) => {
   const userId = requireUserId(context.userId);
   const data = profilePasswordSchema.parse(rawData);
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, passwordHash: true } });
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, institutionId: true, passwordHash: true } });
   if (!user) throw new AppError('Profile not found', StatusCodes.NOT_FOUND);
   const passwordMatches = await bcrypt.compare(data.currentPassword, user.passwordHash);
   if (!passwordMatches) throw new AppError('Current password is incorrect', StatusCodes.BAD_REQUEST);
@@ -157,4 +159,5 @@ export const updatePassword = async (context: ProfileContext, rawData: unknown) 
     prisma.user.update({ where: { id: user.id }, data: { passwordHash: await bcrypt.hash(data.newPassword, 12) } }),
     prisma.refreshToken.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date() } }),
   ]);
+  await writeAuditLog({ actorId: user.id, institutionId: user.institutionId, action: 'PASSWORD_CHANGE', entityType: 'User', entityId: user.id }).catch(() => undefined);
 };

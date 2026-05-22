@@ -11,16 +11,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run lint:strict
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run lint
+      - run: pnpm run lint:strict
         continue-on-error: true
-      - run: npm test
-      - run: npm run build
+      - run: pnpm test
+      - run: pnpm run build
 
   backend:
     name: Backend
@@ -50,16 +53,22 @@ jobs:
       NODE_ENV: test
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-          cache-dependency-path: backend/package-lock.json
-      - run: npm ci
-      - run: npm run prisma:generate
-      - run: npm run prisma:deploy
-      - run: npm run lint
-      - run: npm run lint:strict
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run prisma:generate
+      - run: pnpm run prisma:deploy
+      - run: pnpm run lint
+      - run: pnpm run lint:strict
         continue-on-error: true
-      - run: npm test
-      - run: npm run build
+      - run: pnpm test
+      - run: pnpm run build

@@ -6,7 +6,6 @@ interface AuthResponse {
   data: {
     user: User;
     accessToken: string;
-    refreshToken: string;
   };
 }
 
@@ -21,16 +20,30 @@ export const loginRequest = (email: string, password: string) => (
   })
 );
 
-export const refreshRequest = (refreshToken: string) => (
+export const refreshRequest = () => (
   apiClient<AuthResponse>('/auth/refresh', {
     method: 'POST',
-    body: JSON.stringify({ refreshToken }),
+    body: JSON.stringify({}),
   })
 );
 
-export const logoutRequest = (refreshToken?: string) => (
+export const logoutRequest = () => (
   apiClient<SuccessResponse>('/auth/logout', {
     method: 'POST',
-    body: JSON.stringify({ refreshToken }),
+    body: JSON.stringify({}),
+  })
+);
+
+export const forgotPasswordRequest = (email: string) => (
+  apiClient<{ success: boolean; message?: string }>('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+);
+
+export const resetPasswordRequest = (token: string, password: string) => (
+  apiClient<{ success: boolean }>('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, password }),
   })
 );

@@ -1,10 +1,10 @@
-import { Router } from 'express';
+import { Router, type Router as ExpressRouter } from 'express';
 import * as reportController from '../controllers/report.controller.js';
 import { adminOnly } from '../middleware/adminOnly.js';
 import { reportExportRateLimiter } from '../middleware/rateLimit.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
-export const reportRouter = Router();
+export const reportRouter: ExpressRouter = Router();
 
 reportRouter.use('/reports', adminOnly);
 

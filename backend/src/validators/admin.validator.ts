@@ -22,6 +22,8 @@ export const studentSchema = z.object({
   name: z.string().trim().min(1),
   rollNo: z.string().trim().min(1),
   phone: z.string().trim().optional(),
+  parentName: z.string().trim().optional(),
+  parentEmail: z.string().trim().email().optional().or(z.literal('')),
   parentPhone: z.string().trim().optional(),
   subject: z.string().trim().optional(),
   email: z.string().trim().email().optional().or(z.literal('')),
@@ -84,3 +86,23 @@ export const assignmentSchema = z.object({
 });
 
 export const assignmentUpdateSchema = assignmentSchema.partial();
+
+
+export const holidaySchema = z.object({
+  date: z.string().trim().min(1),
+  name: z.string().trim().min(1).max(160),
+  academicYear: z.string().trim().optional(),
+  description: z.string().trim().max(500).optional().nullable(),
+});
+
+export const holidayUpdateSchema = holidaySchema.partial();
+
+export const attendancePolicySchema = z.object({
+  lockAfterHours: z.number().int().min(0).max(8760).optional(),
+  workingDays: z.array(z.number().int().min(0).max(6)).min(1).max(7).optional(),
+  adminOverrideEnabled: z.boolean().optional(),
+});
+
+export const reviewRequestSchema = z.object({
+  adminNote: z.string().trim().max(1000).optional().nullable(),
+});

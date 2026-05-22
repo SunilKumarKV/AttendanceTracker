@@ -56,16 +56,16 @@ Before live launch, configure at least one delivery provider:
 ## Validation completed
 
 - Frontend dependencies installed successfully.
-- Frontend TypeScript check passed: `npm run typecheck`.
-- Backend dependencies installed successfully with `npm install --ignore-scripts --no-audit --no-fund`.
+- Frontend TypeScript check passed: `pnpm run typecheck`.
+- Backend dependencies installed successfully with `pnpm install --ignore-scripts --no-audit --no-fund`.
 - Backend Prisma generation could not be completed in the sandbox because Prisma tried to download query-engine binaries from `binaries.prisma.sh`, but internet access failed. Run this locally or in CI:
 
 ```bash
 cd backend
-npm install
-npm run prisma:generate
-npm run typecheck
-npm run build
+pnpm install
+pnpm run prisma:generate
+pnpm run typecheck
+pnpm run build
 ```
 
 ## Recommended next production features

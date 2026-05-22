@@ -22,6 +22,12 @@ enum AttendanceStatus {
   EXCUSED
 }
 
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model Institution {
   id               String            @id @default(cuid())
   name             String
@@ -40,6 +46,11 @@ model Institution {
   attendanceSessions AttendanceSession[]
   notificationLogs NotificationLog[]
   auditLogs        AuditLog[]
+  loginHistory     LoginHistory[]
+  attendancePolicies AttendancePolicy?
+  holidays         Holiday[]
+  correctionRequests AttendanceCorrectionRequest[]
+  leaveRequests    LeaveRequest[]
   appSettings      AppSettings?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
@@ -64,6 +75,11 @@ model User {
   professorAssignments ProfessorSubjectAssignment[]
   attendanceSessions  AttendanceSession[]  @relation("SessionProfessor")
   auditLogs           AuditLog[]           @relation("AuditActor")
+  loginHistory        LoginHistory[]
+  requestedCorrections AttendanceCorrectionRequest[] @relation("CorrectionRequester")
+  reviewedCorrections AttendanceCorrectionRequest[] @relation("CorrectionReviewer")
+  requestedLeaves     LeaveRequest[] @relation("LeaveRequester")
+  reviewedLeaves      LeaveRequest[] @relation("LeaveReviewer")
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
 
@@ -129,9 +145,13 @@ model Student {
   name                String
   email               String?
   phone               String?
+  parentName          String?
+  parentEmail         String?
   parentPhone         String?
   isActive            Boolean            @default(true)
   attendanceRecords   AttendanceRecord[]
+  leaveRequests       LeaveRequest[]
+  correctionRequests  AttendanceCorrectionRequest[]
   notificationLogs    NotificationLog[]
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
@@ -139,6 +159,7 @@ model Student {
   @@unique([institutionId, courseId, sectionId, rollNumber])
   @@index([institutionId, name])
   @@index([courseId, sectionId])
+  @@index([parentEmail])
   @@index([isActive])
 }
 
@@ -271,12 +292,15 @@ model AttendanceSession {
   isLocked        Boolean            @default(false)
   lockedAt        DateTime?
   records         AttendanceRecord[]
+  correctionRequests AttendanceCorrectionRequest[]
+  notificationLogs NotificationLog[]
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
 
   @@index([institutionId, sessionDate])
   @@index([courseId, subjectId])
   @@index([courseId, sectionId, subjectId, sessionDate, period])
+  @@unique([professorId, courseId, sectionId, subjectId, sessionDate, period])
   @@index([professorId, sessionDate])
 }
 
@@ -291,6 +315,7 @@ model AttendanceRecord {
   markedAt    DateTime         @default(now())
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
+  correctionRequests AttendanceCorrectionRequest[]
 
   @@unique([sessionId, studentId])
   @@index([studentId, status])
@@ -304,6 +329,7 @@ model NotificationLog {
   studentId     String?
   student       Student?    @relation(fields: [studentId], references: [id], onDelete: SetNull)
   attendanceSessionId String?
+  attendanceSession   AttendanceSession? @relation(fields: [attendanceSessionId], references: [id], onDelete: SetNull)
   channel       String
   recipient     String
   recipientType String?
@@ -343,6 +369,106 @@ model AuditLog {
   @@index([institutionId, createdAt])
   @@index([actorId])
   @@index([entityType, entityId])
+}
+
+
+model LoginHistory {
+  id            String      @id @default(cuid())
+  institutionId String?
+  institution   Institution? @relation(fields: [institutionId], references: [id], onDelete: SetNull)
+  userId        String?
+  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  email         String
+  success       Boolean
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime    @default(now())
+
+  @@index([institutionId, createdAt])
+  @@index([userId, createdAt])
+  @@index([email, createdAt])
+  @@index([success, createdAt])
+}
+
+model AttendancePolicy {
+  id                    String      @id @default(cuid())
+  institutionId         String      @unique
+  institution           Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  lockAfterHours        Int         @default(24)
+  workingDays           Int[]       @default([1, 2, 3, 4, 5, 6])
+  adminOverrideEnabled  Boolean     @default(true)
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  @@index([institutionId])
+}
+
+model Holiday {
+  id            String      @id @default(cuid())
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  academicYear  String
+  date          DateTime
+  name          String
+  description   String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([institutionId, date])
+  @@index([institutionId, academicYear])
+  @@index([date])
+}
+
+model AttendanceCorrectionRequest {
+  id                  String           @id @default(cuid())
+  institutionId       String
+  institution         Institution      @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  sessionId           String
+  session             AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  attendanceRecordId  String?
+  attendanceRecord    AttendanceRecord? @relation(fields: [attendanceRecordId], references: [id], onDelete: SetNull)
+  studentId           String?
+  student             Student?         @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  requestedById       String
+  requestedBy         User             @relation("CorrectionRequester", fields: [requestedById], references: [id], onDelete: Cascade)
+  reviewedById        String?
+  reviewedBy          User?            @relation("CorrectionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  currentStatus       AttendanceStatus?
+  requestedStatus     AttendanceStatus?
+  reason              String
+  adminNote           String?
+  status              RequestStatus    @default(PENDING)
+  resolvedAt          DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  @@index([institutionId, status, createdAt])
+  @@index([sessionId])
+  @@index([requestedById])
+  @@index([studentId])
+}
+
+model LeaveRequest {
+  id            String        @id @default(cuid())
+  institutionId String
+  institution   Institution   @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  studentId     String
+  student       Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  requestedById String?
+  requestedBy   User?         @relation("LeaveRequester", fields: [requestedById], references: [id], onDelete: SetNull)
+  reviewedById  String?
+  reviewedBy    User?         @relation("LeaveReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  fromDate      DateTime
+  toDate        DateTime
+  reason        String
+  status        RequestStatus @default(PENDING)
+  adminNote     String?
+  resolvedAt    DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([institutionId, status, createdAt])
+  @@index([studentId, fromDate, toDate])
 }
 
 model AppSettings {

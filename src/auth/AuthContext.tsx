@@ -1,21 +1,19 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
-import { loginRequest, logoutRequest } from '../api/auth';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { loginRequest, logoutRequest, refreshRequest } from '../api/auth';
 import { AuthState, Role, User } from '../types';
 import {
   clearAuthToken,
   clearRefreshToken,
   clearStoredUser,
-  getAuthToken,
-  getRefreshToken,
   getStoredUser,
   setAuthToken,
-  setRefreshToken,
   setStoredUser,
 } from './authStorage';
 
 interface AuthContextType extends AuthState {
   currentUser: User | null;
   role: Role | null;
+  isAuthLoading: boolean;
   login: (email: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
   updateCurrentUser: (user: User) => void;
@@ -24,27 +22,47 @@ interface AuthContextType extends AuthState {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, setState] = useState<AuthState>(() => {
-    const user = getStoredUser();
-    const accessToken = getAuthToken();
+  const [state, setState] = useState<AuthState>(() => ({
+    user: getStoredUser(),
+    isAuthenticated: false,
+  }));
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
 
-    if (user && !accessToken) {
-      clearStoredUser();
+  useEffect(() => {
+    let mounted = true;
+
+    const restoreSession = async () => {
       clearRefreshToken();
-    }
-
-    return {
-      user: accessToken ? user : null,
-      isAuthenticated: Boolean(user && accessToken),
+      try {
+        const response = await refreshRequest();
+        if (!mounted) return;
+        const { user, accessToken } = response.data;
+        setAuthToken(accessToken);
+        setStoredUser(user);
+        setState({ user, isAuthenticated: true });
+      } catch {
+        if (!mounted) return;
+        clearAuthToken();
+        clearStoredUser();
+        setState({ user: null, isAuthenticated: false });
+      } finally {
+        if (mounted) setIsAuthLoading(false);
+      }
     };
-  });
+
+    restoreSession();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const login = async (email: string, password: string): Promise<User> => {
     const response = await loginRequest(email, password);
-    const { user, accessToken, refreshToken } = response.data;
+    const { user, accessToken } = response.data;
 
+    clearRefreshToken();
     setAuthToken(accessToken);
-    setRefreshToken(refreshToken);
     setStoredUser(user);
     setState({ user, isAuthenticated: true });
 
@@ -52,14 +70,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
-    const refreshToken = getRefreshToken();
-
-    if (refreshToken) {
-      try {
-        await logoutRequest(refreshToken);
-      } catch {
-        // Local session should still be cleared if the server is unreachable.
-      }
+    try {
+      await logoutRequest();
+    } catch {
+      // Local session should still be cleared if the server is unreachable.
     }
 
     setState({ user: null, isAuthenticated: false });
@@ -78,10 +92,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     ...state,
     currentUser: state.user,
     role: state.user?.role ?? null,
+    isAuthLoading,
     login,
     logout,
     updateCurrentUser,
-  }), [state]);
+  }), [isAuthLoading, state]);
 
   return (
     <AuthContext.Provider value={value}>

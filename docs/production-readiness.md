@@ -7,8 +7,8 @@
 - `DATABASE_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, and `CLIENT_URL` are configured as secrets.
 - `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET` are unique and at least 32 characters.
 - `CORS_ORIGINS` contains only trusted extra origins.
-- `npm run prisma:deploy` runs during backend deployment.
-- `npm run seed:first-admin` is run once to create the first admin account.
+- `pnpm run prisma:deploy` runs during backend deployment.
+- `pnpm run seed:first-admin` is run once to create the first admin account.
 - First-admin seed variables are removed after use.
 - Development seed command is not run in production.
 - `/api/health` is monitored by the platform.

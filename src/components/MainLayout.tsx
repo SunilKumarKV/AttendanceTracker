@@ -7,7 +7,9 @@ import {
   BarChart3, 
   Bell, 
   CalendarDays,
+  ClipboardCheck,
   UserCog, 
+  ShieldCheck,
   Settings, 
   LogOut, 
   GraduationCap,
@@ -43,7 +45,9 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
     { label: 'Academics', path: '/academics', icon: GraduationCap },
     { label: 'Reports', path: '/reports', icon: BarChart3 },
     { label: 'Notifications', path: '/notifications', icon: Bell },
+    { label: 'Attendance Control', path: '/attendance-control', icon: ClipboardCheck },
     { label: 'Manage Teachers', path: '/manage-professors', icon: UserCog },
+    { label: 'Security Logs', path: '/audit-logs', icon: ShieldCheck },
     { label: 'Settings', path: '/settings', icon: Settings },
   ];
 
@@ -52,6 +56,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
     { label: 'Take Attendance', path: '/mark-attendance', icon: UserCheck },
     { label: 'My Students', path: '/my-students', icon: Users },
     { label: 'Attendance History', path: '/attendance-history', icon: CalendarDays },
+    { label: 'Requests', path: '/teacher-requests', icon: ClipboardCheck },
     { label: 'My Reports', path: '/my-reports', icon: BarChart3 },
     { label: 'Profile', path: '/professor-profile', icon: UserIcon },
     { label: 'Settings', path: '/professor-settings', icon: Settings },
@@ -62,7 +67,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
   const menuItems = isAdmin ? adminItems : professorItems;
 
   const getPageTitle = () => {
-    const currentItem = [...adminItems, ...professorItems, { label: 'Profile', path: '/profile' }, { label: 'Profile', path: '/professor-profile' }]
+    const currentItem = [...adminItems, ...professorItems, { label: 'Security Logs', path: '/audit-logs' }, { label: 'Attendance Control', path: '/attendance-control' }, { label: 'Requests', path: '/teacher-requests' }, { label: 'Profile', path: '/profile' }, { label: 'Profile', path: '/professor-profile' }]
       .find(item => item.path === location.pathname);
     return currentItem?.label || 'AttendanceTracker';
   };

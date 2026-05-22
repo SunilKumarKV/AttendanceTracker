@@ -14,9 +14,9 @@ AttendanceTracker is a full-stack attendance MVP for institutions. Version 1 inc
 1. Install dependencies:
 
 ```bash
-npm install
+pnpm install
 cd backend
-npm install
+pnpm install
 cd ..
 ```
 
@@ -37,8 +37,8 @@ createdb attendancepro
 
 ```bash
 cd backend
-npm run prisma:migrate
-npm run prisma:seed
+pnpm run prisma:migrate
+pnpm run prisma:seed
 cd ..
 ```
 
@@ -46,13 +46,13 @@ cd ..
 
 ```bash
 cd backend
-npm run dev
+pnpm run dev
 ```
 
 In another terminal:
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 Open `http://localhost:3000`.
@@ -62,19 +62,19 @@ Open `http://localhost:3000`.
 Frontend `.env`:
 
 ```env
-VITE_API_BASE_URL=http://localhost:5001/api
+VITE_API_BASE_URL=http://localhost:5000/api
 VITE_APP_NAME=AttendanceTracker
 ```
 
 Backend `.env` essentials:
 
 ```env
-DATABASE_URL=postgresql://sunilkumarkv@localhost:5432/attendancepro?schema=public
-PORT=5001
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/attendancepro?schema=public
+PORT=5000
 CLIENT_URL=http://localhost:3000
 CORS_ORIGINS=http://localhost:3000,http://localhost:5173
-JWT_ACCESS_SECRET=change_me_local_access_secret
-JWT_REFRESH_SECRET=change_me_local_refresh_secret
+JWT_ACCESS_SECRET=replace_with_at_least_32_chars_for_production
+JWT_REFRESH_SECRET=replace_with_at_least_32_chars_for_production
 DEV_SEED_PASSWORD=Admin@123456
 ```
 
@@ -87,7 +87,7 @@ The development seed creates real database records: institution, admin, teacher,
 ```txt
 Admin: admin@attendancetracker.local
 Teacher: professor@attendancetracker.local
-Password: Admin@123456
+Password: value of DEV_SEED_PASSWORD in backend/.env
 ```
 
 The teacher email remains `professor@attendancetracker.local` for backward compatibility with older local data.
@@ -112,38 +112,99 @@ The teacher email remains `professor@attendancetracker.local` for backward compa
 Frontend:
 
 ```bash
-npm run dev
-npm run typecheck
-npm test -- --run
-npm run test:e2e -- --reporter=line
-npm run build
+pnpm run dev
+pnpm run typecheck
+pnpm test -- --run
+pnpm run test:e2e -- --reporter=line
+pnpm run build
 ```
 
 Backend:
 
 ```bash
 cd backend
-npm run dev
-npm run prisma:generate
-npm run prisma:migrate
-npm run prisma:deploy
-npm run prisma:seed
-npm run seed:first-admin
-npm run typecheck
-npm test -- --run
-npm run build
+pnpm run dev
+pnpm run prisma:generate
+pnpm run prisma:migrate
+pnpm run prisma:deploy
+pnpm run prisma:seed
+pnpm run seed:first-admin
+pnpm run typecheck
+pnpm test -- --run
+pnpm run build
 ```
 
 Health check:
 
 ```bash
-curl http://localhost:5001/api/health
+curl http://localhost:5000/api/health
 ```
 
 ## Production Notes
 
 - Use strong unique JWT secrets.
 - Set `CLIENT_URL` and `CORS_ORIGINS` to deployed frontend origins.
-- Run `npm run prisma:deploy` during backend deployment.
-- Run `npm run seed:first-admin` once for production, then remove first-admin password variables.
+- Run `pnpm run prisma:deploy` during backend deployment.
+- Run `pnpm run seed:first-admin` once for production, then remove first-admin password variables.
 - Configure SMTP/SMS/WhatsApp providers only when you are ready to send real notifications.
+
+## Final Production Validation Notes
+
+Run these from a clean checkout before every release:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm run typecheck
+pnpm run lint
+pnpm run test
+pnpm run build
+cd backend
+pnpm install --frozen-lockfile
+pnpm run prisma:generate
+pnpm run prisma:deploy
+pnpm run typecheck
+pnpm run lint
+pnpm run test
+pnpm run build
+```
+
+Backend integration tests require a reachable PostgreSQL database using `DATABASE_URL`. Prisma generation requires access to Prisma engine binaries during first install or a preconfigured build cache.
+
+## Version 1.1 Security Upgrade
+
+Version 1.1 adds production security/user-control features while preserving Version 1 flows:
+
+- Forgot password
+- Reset password
+- Change password
+- User profile updates
+- Admin audit logs
+- Activity timeline
+- Login history
+- Stronger backend RBAC/audit visibility
+
+### Required email environment
+
+```env
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=your_smtp_user
+SMTP_PASS=your_smtp_password
+SMTP_FROM=support@yourdomain.com
+PASSWORD_RESET_URL=http://localhost:3000/reset-password
+PASSWORD_RESET_TOKEN_EXPIRES_MINUTES=30
+```
+
+### PNPM-only setup
+
+```bash
+corepack enable
+corepack prepare pnpm@10.15.0 --activate
+pnpm install
+pnpm prisma generate
+pnpm prisma validate
+pnpm prisma migrate dev
+pnpm prisma db seed
+pnpm build
+pnpm dev
+```

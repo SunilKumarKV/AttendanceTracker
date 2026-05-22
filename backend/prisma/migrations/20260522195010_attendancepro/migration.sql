@@ -1,0 +1,2 @@
+-- RenameIndex
+ALTER INDEX "AttendanceSession_prof_course_section_subject_date_period_key" RENAME TO "AttendanceSession_professorId_courseId_sectionId_subjectId__key";

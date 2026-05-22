@@ -39,6 +39,9 @@ const envSchema = z.object({
   SMTP_USER: z.preprocess(emptyToUndefined, z.string().optional().default('')),
   SMTP_PASS: z.preprocess(emptyToUndefined, z.string().optional().default('')),
   SUPPORT_EMAIL: z.preprocess(emptyToUndefined, z.string().email().default('support@attendancetracker.com')),
+  SMTP_FROM: z.preprocess(emptyToUndefined, z.string().email().optional()),
+  PASSWORD_RESET_URL: z.preprocess(emptyToUndefined, z.string().url().default('http://localhost:3000/reset-password')),
+  PASSWORD_RESET_TOKEN_EXPIRES_MINUTES: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().default(30)),
   TWILIO_ACCOUNT_SID: z.preprocess(emptyToUndefined, z.string().optional().default('')),
   TWILIO_AUTH_TOKEN: z.preprocess(emptyToUndefined, z.string().optional().default('')),
   TWILIO_FROM_NUMBER: z.preprocess(emptyToUndefined, z.string().optional().default('')),
@@ -47,6 +50,9 @@ const envSchema = z.object({
   WHATSAPP_PHONE_NUMBER_ID: z.preprocess(emptyToUndefined, z.string().optional().default('')),
   WHATSAPP_TEMPLATE_NAME: z.preprocess(emptyToUndefined, z.string().optional().default('')),
   WHATSAPP_TEMPLATE_LANG: z.preprocess(emptyToUndefined, z.string().optional().default('en')),
+  COOKIE_DOMAIN: z.preprocess(emptyToUndefined, z.string().optional().default('')),
+  COOKIE_SAMESITE: z.preprocess(emptyToUndefined, z.enum(['lax', 'strict', 'none']).default(isProduction ? 'none' : 'lax')),
+  COOKIE_SECURE: z.preprocess((value) => toBoolean(emptyToUndefined(value)), z.boolean().default(isProduction)),
 });
 
 const parsed = envSchema.safeParse({
@@ -84,13 +90,21 @@ export const env = {
     port: values.SMTP_PORT,
     user: values.SMTP_USER,
     pass: values.SMTP_PASS,
+    from: values.SMTP_FROM || values.SUPPORT_EMAIL,
   },
+  passwordResetUrl: values.PASSWORD_RESET_URL,
+  passwordResetTokenExpiresMinutes: values.PASSWORD_RESET_TOKEN_EXPIRES_MINUTES,
   supportEmail: values.SUPPORT_EMAIL,
   twilio: {
     accountSid: values.TWILIO_ACCOUNT_SID,
     authToken: values.TWILIO_AUTH_TOKEN,
     fromNumber: values.TWILIO_FROM_NUMBER,
     whatsappFrom: values.TWILIO_WHATSAPP_FROM,
+  },
+  cookies: {
+    domain: values.COOKIE_DOMAIN,
+    sameSite: values.COOKIE_SAMESITE,
+    secure: values.COOKIE_SECURE,
   },
   whatsappCloud: {
     token: values.WHATSAPP_CLOUD_TOKEN,

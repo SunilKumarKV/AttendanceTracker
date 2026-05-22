@@ -6,6 +6,7 @@ import { logger } from '../utils/logger.js';
 import { getPagination, toPaginatedResponse } from '../utils/pagination.js';
 import { writeAuditLog } from './audit.service.js';
 import { getNotificationSettings, sendAbsentAlert, sendLowAttendanceAlert } from './notification.service.js';
+import { applyApprovedLeaveStatuses, assertAttendanceDateAllowed, createCorrectionRequest, createLeaveRequest, isSessionFrozen, listCorrectionRequests, listLeaveRequests } from './attendanceControl.service.js';
 
 interface ProfessorContext {
   userId?: string;
@@ -35,7 +36,9 @@ const assignmentInclude = {
   section: true,
 } satisfies Prisma.ProfessorSubjectAssignmentInclude;
 
-const toAssignmentDto = (assignment: Prisma.ProfessorSubjectAssignmentGetPayload<{ include: typeof assignmentInclude }>) => ({
+const toAssignmentDto = (
+  assignment: Prisma.ProfessorSubjectAssignmentGetPayload<{ include: typeof assignmentInclude }>,
+) => ({
   id: assignment.id,
   courseId: assignment.courseId,
   classId: assignment.courseId,
@@ -73,7 +76,7 @@ const toSessionDto = (session: Prisma.AttendanceSessionGetPayload<{ include: typ
   notes: session.notes,
   isLocked: session.isLocked,
   lockedAt: session.lockedAt?.toISOString() ?? null,
-  records: session.records.map((record) => ({
+  records: session.records.map((record: any) => ({
     id: record.id,
     studentId: record.studentId,
     studentName: record.student.name,
@@ -148,7 +151,13 @@ export const getClassStudents = async (context: ProfessorContext, classId: strin
   }));
 };
 
-const assertAssignment = async (context: ProfessorContext, courseId: string, subjectId: string, semesterId?: string | null, sectionId?: string | null) => {
+const assertAssignment = async (
+  context: ProfessorContext,
+  courseId: string,
+  subjectId: string,
+  semesterId?: string | null,
+  sectionId?: string | null,
+) => {
   const { userId } = requireProfessor(context);
   const [assignment, subject, section, semester] = await Promise.all([
     prisma.professorSubjectAssignment.findFirst({
@@ -162,16 +171,25 @@ const assertAssignment = async (context: ProfessorContext, courseId: string, sub
       },
     }),
     prisma.subject.findFirst({ where: { id: subjectId, courseId } }),
-    sectionId ? prisma.section.findFirst({ where: { id: sectionId, courseId, ...(semesterId ? { semesterId } : {}) } }) : Promise.resolve(null),
+    sectionId
+      ? prisma.section.findFirst({ where: { id: sectionId, courseId, ...(semesterId ? { semesterId } : {}) } })
+      : Promise.resolve(null),
     semesterId ? prisma.semester.findFirst({ where: { id: semesterId, courseId } }) : Promise.resolve(null),
   ]);
-  if (!assignment) throw new AppError('This class and subject are not assigned to this professor', StatusCodes.FORBIDDEN);
+  if (!assignment)
+    throw new AppError('This class and subject are not assigned to this professor', StatusCodes.FORBIDDEN);
   if (!subject) throw new AppError('Subject does not belong to the selected class', StatusCodes.BAD_REQUEST);
-  if (sectionId && !section) throw new AppError('Section does not belong to the selected class and semester', StatusCodes.BAD_REQUEST);
-  if (semesterId && !semester) throw new AppError('Semester does not belong to the selected class', StatusCodes.BAD_REQUEST);
+  if (sectionId && !section)
+    throw new AppError('Section does not belong to the selected class and semester', StatusCodes.BAD_REQUEST);
+  if (semesterId && !semester)
+    throw new AppError('Semester does not belong to the selected class', StatusCodes.BAD_REQUEST);
 };
 
-const assertRecordsBelongToClass = async (courseId: string, sectionId: string | null | undefined, records: { studentId: string }[]) => {
+const assertRecordsBelongToClass = async (
+  courseId: string,
+  sectionId: string | null | undefined,
+  records: { studentId: string }[],
+) => {
   const studentCount = await prisma.student.count({
     where: {
       id: { in: records.map((record) => record.studentId) },
@@ -206,21 +224,32 @@ const sendAttendanceNotifications = async (
   const tasks = records.flatMap((record) => {
     const notifications: Promise<unknown>[] = [];
     if (record.status === 'ABSENT') {
-      if (settings.emailEnabled) notifications.push(sendAbsentAlert(context, record.studentId, 'email', attendanceSessionId));
-      if (settings.whatsappEnabled) notifications.push(sendAbsentAlert(context, record.studentId, 'whatsapp', attendanceSessionId));
+      if (settings.emailEnabled)
+        notifications.push(sendAbsentAlert(context, record.studentId, 'email', attendanceSessionId));
+      if (settings.whatsappEnabled)
+        notifications.push(sendAbsentAlert(context, record.studentId, 'whatsapp', attendanceSessionId));
     }
-    notifications.push(attendancePercentageForStudent(record.studentId).then(async (percentage) => {
-      if (percentage >= threshold) return undefined;
-      const jobs: Promise<unknown>[] = [];
-      if (settings.whatsappEnabled) jobs.push(sendLowAttendanceAlert(context, record.studentId, 'whatsapp'));
-      if (settings.smsEnabled && percentage <= settings.criticalAttendancePct) jobs.push(sendLowAttendanceAlert(context, record.studentId, 'sms'));
-      if (settings.emailEnabled && percentage <= settings.severeAttendancePct) jobs.push(sendLowAttendanceAlert(context, record.studentId, 'email'));
-      if (jobs.length === 0) jobs.push(sendLowAttendanceAlert(context, record.studentId, 'email'));
-      return Promise.allSettled(jobs);
-    }));
-    return notifications.map((task) => task.catch((error) => {
-      logger.warn('Attendance notification was not sent.', { studentId: record.studentId, error: error instanceof Error ? error.message : String(error) });
-    }));
+    notifications.push(
+      attendancePercentageForStudent(record.studentId).then(async (percentage) => {
+        if (percentage >= threshold) return undefined;
+        const jobs: Promise<unknown>[] = [];
+        if (settings.whatsappEnabled) jobs.push(sendLowAttendanceAlert(context, record.studentId, 'whatsapp'));
+        if (settings.smsEnabled && percentage <= settings.criticalAttendancePct)
+          jobs.push(sendLowAttendanceAlert(context, record.studentId, 'sms'));
+        if (settings.emailEnabled && percentage <= settings.severeAttendancePct)
+          jobs.push(sendLowAttendanceAlert(context, record.studentId, 'email'));
+        if (jobs.length === 0) jobs.push(sendLowAttendanceAlert(context, record.studentId, 'email'));
+        return Promise.allSettled(jobs);
+      }),
+    );
+    return notifications.map((task) =>
+      task.catch((error) => {
+        logger.warn('Attendance notification was not sent.', {
+          studentId: record.studentId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }),
+    );
   });
 
   await Promise.allSettled(tasks);
@@ -237,8 +266,10 @@ export const createAttendanceSession = async (context: ProfessorContext, data: a
   const { userId, institutionId } = requireProfessor(context);
   const sessionDate = startOfDay(data.sessionDate);
   const lockAfterSubmit = await shouldLockAttendanceAfterSubmit(institutionId);
+  await assertAttendanceDateAllowed(institutionId, sessionDate, data.adminOverride === true);
   await assertAssignment(context, data.courseId, data.subjectId, data.semesterId, data.sectionId);
   await assertRecordsBelongToClass(data.courseId, data.sectionId, data.records);
+  const leaveAwareRecords = await applyApprovedLeaveStatuses(institutionId, sessionDate, data.records);
 
   const duplicate = await prisma.attendanceSession.findFirst({
     where: {
@@ -251,42 +282,73 @@ export const createAttendanceSession = async (context: ProfessorContext, data: a
     },
   });
   if (duplicate) {
-    throw new AppError('Attendance already exists for this date, class, section, subject, professor, and period.', StatusCodes.CONFLICT);
+    throw new AppError(
+      'Attendance already exists for this date, class, section, subject, professor, and period.',
+      StatusCodes.CONFLICT,
+    );
   }
 
-  const session = await prisma.attendanceSession.create({
-    data: {
-      institutionId,
+  let session;
+  try {
+    session = await prisma.attendanceSession.create({
+      data: {
+        institutionId,
+        courseId: data.courseId,
+        subjectId: data.subjectId,
+        semesterId: data.semesterId,
+        sectionId: data.sectionId,
+        professorId: userId,
+        sessionDate,
+        period: data.period,
+        topic: data.topic,
+        notes: data.notes,
+        isLocked: lockAfterSubmit,
+        lockedAt: lockAfterSubmit ? new Date() : null,
+        records: {
+          create: leaveAwareRecords.map((record: any) => ({
+            studentId: record.studentId,
+            status: record.status as AttendanceStatus,
+            remarks: record.remarks,
+          })),
+        },
+      },
+      include: sessionInclude,
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      throw new AppError(
+        'Attendance already exists for this date, class, section, subject, professor, and period.',
+        StatusCodes.CONFLICT,
+      );
+    }
+    throw error;
+  }
+  await writeAuditLog({
+    actorId: userId,
+    institutionId,
+    action: 'CREATE',
+    entityType: 'AttendanceSession',
+    entityId: session.id,
+    metadata: {
       courseId: data.courseId,
       subjectId: data.subjectId,
-      semesterId: data.semesterId,
       sectionId: data.sectionId,
-      professorId: userId,
-      sessionDate,
       period: data.period,
-      topic: data.topic,
-      notes: data.notes,
-      isLocked: lockAfterSubmit,
-      lockedAt: lockAfterSubmit ? new Date() : null,
-      records: {
-        create: data.records.map((record: any) => ({
-          studentId: record.studentId,
-          status: record.status as AttendanceStatus,
-          remarks: record.remarks,
-        })),
-      },
+      sessionDate,
     },
-    include: sessionInclude,
   });
-  await writeAuditLog({ actorId: userId, institutionId, action: 'CREATE', entityType: 'AttendanceSession', entityId: session.id, metadata: { courseId: data.courseId, subjectId: data.subjectId, sectionId: data.sectionId, period: data.period, sessionDate } });
-  await sendAttendanceNotifications({ userId, institutionId }, session.records.map((record) => ({ studentId: record.studentId, status: record.status })), session.id);
+  await sendAttendanceNotifications(
+    { userId, institutionId },
+    session.records.map((record: any) => ({ studentId: record.studentId, status: record.status })),
+    session.id,
+  );
   return toSessionDto(session);
 };
 
 export const listAttendanceSessions = async (context: ProfessorContext, query: unknown) => {
   const { userId } = requireProfessor(context);
   const { page, pageSize, skip, take } = getPagination(query);
-  const filters = query && typeof query === 'object' ? query as Record<string, unknown> : {};
+  const filters = query && typeof query === 'object' ? (query as Record<string, unknown>) : {};
   const fromDate = typeof filters.fromDate === 'string' ? startOfDay(filters.fromDate) : undefined;
   const toDate = typeof filters.toDate === 'string' ? startOfDay(filters.toDate) : undefined;
   if (toDate) toDate.setHours(23, 59, 59, 999);
@@ -298,7 +360,9 @@ export const listAttendanceSessions = async (context: ProfessorContext, query: u
     ...(typeof filters.sectionId === 'string' ? { sectionId: filters.sectionId } : {}),
     ...(filters.locked === 'true' ? { isLocked: true } : {}),
     ...(filters.locked === 'false' ? { isLocked: false } : {}),
-    ...(fromDate || toDate ? { sessionDate: { ...(fromDate ? { gte: fromDate } : {}), ...(toDate ? { lte: toDate } : {}) } } : {}),
+    ...(fromDate || toDate
+      ? { sessionDate: { ...(fromDate ? { gte: fromDate } : {}), ...(toDate ? { lte: toDate } : {}) } }
+      : {}),
   };
   const [items, total] = await Promise.all([
     prisma.attendanceSession.findMany({ where, include: sessionInclude, skip, take, orderBy: { sessionDate: 'desc' } }),
@@ -309,21 +373,30 @@ export const listAttendanceSessions = async (context: ProfessorContext, query: u
 
 export const getAttendanceSession = async (context: ProfessorContext, id: string) => {
   const { userId } = requireProfessor(context);
-  const session = await prisma.attendanceSession.findFirst({ where: { id, professorId: userId }, include: sessionInclude });
+  const session = await prisma.attendanceSession.findFirst({
+    where: { id, professorId: userId },
+    include: sessionInclude,
+  });
   if (!session) throw new AppError('Attendance session not found', StatusCodes.NOT_FOUND);
   return toSessionDto(session);
 };
 
 export const updateAttendanceSession = async (context: ProfessorContext, id: string, data: any) => {
   const { userId, institutionId } = requireProfessor(context);
-  const existing = await prisma.attendanceSession.findFirst({ where: { id, professorId: userId }, include: { records: true } });
+  const existing = await prisma.attendanceSession.findFirst({
+    where: { id, professorId: userId },
+    include: { records: true },
+  });
   if (!existing) throw new AppError('Attendance session not found', StatusCodes.NOT_FOUND);
-  if (existing.isLocked) throw new AppError('Locked attendance sessions cannot be edited.', StatusCodes.CONFLICT);
+  if (await isSessionFrozen(institutionId, existing.sessionDate, existing.isLocked)) {
+    throw new AppError('Attendance is locked/frozen. Submit a correction request for admin approval.', StatusCodes.CONFLICT);
+  }
   if (data.records) await assertRecordsBelongToClass(existing.courseId, existing.sectionId, data.records);
+  const leaveAwareUpdateRecords = data.records ? await applyApprovedLeaveStatuses(institutionId, existing.sessionDate, data.records) : undefined;
 
   const session = await prisma.$transaction(async (tx) => {
     if (data.records) {
-      for (const record of data.records) {
+      for (const record of leaveAwareUpdateRecords ?? []) {
         await tx.attendanceRecord.upsert({
           where: { sessionId_studentId: { sessionId: id, studentId: record.studentId } },
           update: { status: record.status, remarks: record.remarks },
@@ -337,8 +410,19 @@ export const updateAttendanceSession = async (context: ProfessorContext, id: str
       include: sessionInclude,
     });
   });
-  await writeAuditLog({ actorId: userId, institutionId, action: 'UPDATE', entityType: 'AttendanceSession', entityId: id, metadata: data });
-  await sendAttendanceNotifications({ userId, institutionId }, session.records.map((record) => ({ studentId: record.studentId, status: record.status })), session.id);
+  await writeAuditLog({
+    actorId: userId,
+    institutionId,
+    action: 'UPDATE',
+    entityType: 'AttendanceSession',
+    entityId: id,
+    metadata: data,
+  });
+  await sendAttendanceNotifications(
+    { userId, institutionId },
+    session.records.map((record: any) => ({ studentId: record.studentId, status: record.status })),
+    session.id,
+  );
   return toSessionDto(session);
 };
 
@@ -351,6 +435,34 @@ export const lockAttendanceSession = async (context: ProfessorContext, id: strin
     data: { isLocked: true, lockedAt: new Date() },
     include: sessionInclude,
   });
-  await writeAuditLog({ actorId: userId, institutionId, action: 'UPDATE', entityType: 'AttendanceSession', entityId: id, metadata: { locked: true } });
+  await writeAuditLog({
+    actorId: userId,
+    institutionId,
+    action: 'UPDATE',
+    entityType: 'AttendanceSession',
+    entityId: id,
+    metadata: { locked: true },
+  });
   return toSessionDto(session);
+};
+
+
+export const requestAttendanceCorrection = async (context: ProfessorContext, data: any) => {
+  return createCorrectionRequest(context, data);
+};
+
+export const listMyCorrectionRequests = async (context: ProfessorContext) => {
+  const { userId, institutionId } = requireProfessor(context);
+  const requests = await listCorrectionRequests({ userId, institutionId });
+  return requests.filter((request) => request.requestedById === userId);
+};
+
+export const requestStudentLeave = async (context: ProfessorContext, data: any) => {
+  return createLeaveRequest(context, data);
+};
+
+export const listMyLeaveRequests = async (context: ProfessorContext) => {
+  const { userId, institutionId } = requireProfessor(context);
+  const requests = await listLeaveRequests({ userId, institutionId });
+  return requests.filter((request) => request.requestedById === userId);
 };

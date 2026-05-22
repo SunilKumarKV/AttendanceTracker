@@ -1,23 +1,18 @@
--- Add HOD role for department-level report management.
-<<<<<< production/attendancetracker-v1
--- Important: PostgreSQL enum type was created as quoted "Role" in the base migration.
--- The regtype check must also use the quoted name, otherwise Prisma shadow DB fails with:
--- ERROR: type "role" does not exist
+-- Add HOD role safely for existing PostgreSQL databases.
 DO $$
+DECLARE
+  role_type regtype := to_regtype('"Role"');
 BEGIN
-  IF to_regtype('"Role"') IS NOT NULL THEN
-    IF NOT EXISTS (
-      SELECT 1
-      FROM pg_enum
-      WHERE enumlabel = 'HOD'
-        AND enumtypid = '"Role"'::regtype
-    ) THEN
-      ALTER TYPE "Role" ADD VALUE 'HOD';
-    END IF;
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'HOD' AND enumtypid = 'Role'::regtype) THEN
+  IF role_type IS NULL THEN
+    RAISE EXCEPTION 'Required enum type "Role" does not exist. Apply the base schema migration first.';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_enum
+    WHERE enumlabel = 'HOD'
+      AND enumtypid = role_type
+  ) THEN
     ALTER TYPE "Role" ADD VALUE 'HOD';
->>>>>> main
   END IF;
 END $$;

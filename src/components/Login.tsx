@@ -129,7 +129,7 @@ export const Login: React.FC = () => {
               </button>
 
               <p className="mt-5 text-center text-sm font-semibold text-slate-500">
-                Forgot password? Contact your institution administrator.
+                Forgot password? <Link to="/forgot-password" className="font-black text-blue-600 hover:text-blue-700">Reset it securely</Link>
               </p>
             </form>
           </div>
