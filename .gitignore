@@ -6,3 +6,15 @@ coverage/
 *.log
 .env*
 !.env.example
+.env.example
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.bak
+*.tmp
+*.pid
+*.seed
+*.pid.lock
+*.log

@@ -315,9 +315,9 @@ const SetupChecklist: React.FC<{ data: DashboardData }> = ({ data }) => {
     { label: 'Semesters', count: checklist.semesters, done: checklist.semesters > 0, action: '/academics', actionLabel: 'Add Semester', icon: Layers },
     { label: 'Sections', count: checklist.sections, done: checklist.sections > 0, action: '/academics', actionLabel: 'Add Section', icon: Layers },
     { label: 'Subjects', count: checklist.subjects, done: checklist.subjects > 0, action: '/academics', actionLabel: 'Add Subject', icon: BookOpen },
-    { label: 'Professors', count: checklist.professors, done: checklist.professors > 0, action: '/manage-professors', actionLabel: 'Add Professor', icon: UserCheck },
+    { label: 'Teachers', count: checklist.professors, done: checklist.professors > 0, action: '/manage-professors', actionLabel: 'Add Teacher', icon: UserCheck },
     { label: 'Students', count: checklist.students, done: checklist.students > 0, action: '/students', actionLabel: 'Add Student', icon: Users },
-    { label: 'Assignments', count: checklist.assignments, done: checklist.assignments > 0, action: '/academics', actionLabel: 'Assign Professor', icon: Link2 },
+    { label: 'Assignments', count: checklist.assignments, done: checklist.assignments > 0, action: '/academics', actionLabel: 'Assign Teacher', icon: Link2 },
   ];
   const completeCount = items.filter((item) => item.done).length;
   return (
@@ -325,7 +325,7 @@ const SetupChecklist: React.FC<{ data: DashboardData }> = ({ data }) => {
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-xl font-bold text-slate-900">Admin Setup Checklist</h3>
-          <p className="text-sm font-semibold text-slate-500">Complete these items before professors can take attendance.</p>
+          <p className="text-sm font-semibold text-slate-500">Complete these items before teachers can take attendance.</p>
         </div>
         <span className="rounded-full bg-blue-50 px-4 py-2 text-sm font-black text-blue-700">{completeCount} / {items.length} Complete</span>
       </div>

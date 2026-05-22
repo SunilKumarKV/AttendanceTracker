@@ -137,6 +137,13 @@ export const deleteProfessor = (id: string) => (
   apiClient<void>(`/professors/${id}`, { method: 'DELETE' })
 );
 
+export type Teacher = Professor;
+export type TeacherAssignment = ProfessorAssignment;
+export const getTeachers = getProfessors;
+export const createTeacher = createProfessor;
+export const updateTeacher = updateProfessor;
+export const deleteTeacher = deleteProfessor;
+
 export const getStudents = (search?: string, page = 1, pageSize = 10) => (
   apiClient<ApiResponse<Paginated<Student>>>(`/students${queryString({ search, page, pageSize })}`)
 );

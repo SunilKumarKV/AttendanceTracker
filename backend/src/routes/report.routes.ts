@@ -16,3 +16,4 @@ reportRouter.get('/reports/export/pdf', reportExportRateLimiter, asyncHandler(re
 reportRouter.get('/reports/student/:studentId', asyncHandler(reportController.student));
 reportRouter.get('/reports/class/:classId', asyncHandler(reportController.classReport));
 reportRouter.get('/reports/subject/:subjectId', asyncHandler(reportController.subject));
+reportRouter.get('/reports/date/:date', asyncHandler(reportController.dateReport));

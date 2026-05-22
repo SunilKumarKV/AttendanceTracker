@@ -32,6 +32,10 @@ adminRouter.get('/professors', asyncHandler(adminController.listProfessors));
 adminRouter.post('/professors', validateBody(professorSchema), asyncHandler(adminController.createProfessor));
 adminRouter.patch('/professors/:id', validateBody(professorUpdateSchema), asyncHandler(adminController.updateProfessor));
 adminRouter.delete('/professors/:id', asyncHandler(adminController.deleteProfessor));
+adminRouter.get('/teachers', asyncHandler(adminController.listProfessors));
+adminRouter.post('/teachers', validateBody(professorSchema), asyncHandler(adminController.createProfessor));
+adminRouter.patch('/teachers/:id', validateBody(professorUpdateSchema), asyncHandler(adminController.updateProfessor));
+adminRouter.delete('/teachers/:id', asyncHandler(adminController.deleteProfessor));
 
 adminRouter.get('/students', asyncHandler(adminController.listStudents));
 adminRouter.post('/students', validateBody(studentSchema), asyncHandler(adminController.createStudent));

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search, Users } from 'lucide-react';
-import { getAttendanceSessions, getProfessorAssignments, getProfessorClassStudents, ProfessorAssignment } from '../api/professor';
+import { getAttendanceSessions, getTeacherAssignments, getTeacherClassStudents, TeacherAssignment } from '../api/teacher';
 import { Student } from '../types';
 import { EmptyState, ErrorState, Loader, Pagination } from './common';
 
@@ -13,8 +13,8 @@ interface StudentRow extends Student {
   attendancePercentage: number;
 }
 
-export const ProfessorStudents: React.FC = () => {
-  const [assignments, setAssignments] = useState<ProfessorAssignment[]>([]);
+export const TeacherStudents: React.FC = () => {
+  const [assignments, setAssignments] = useState<TeacherAssignment[]>([]);
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [classFilter, setClassFilter] = useState('');
   const [sectionFilter, setSectionFilter] = useState('');
@@ -29,13 +29,13 @@ export const ProfessorStudents: React.FC = () => {
     setError('');
     try {
       const [assignmentResponse, sessionsResponse] = await Promise.all([
-        getProfessorAssignments(),
+        getTeacherAssignments(),
         getAttendanceSessions({ page: 1, pageSize: 100 }),
       ]);
       setAssignments(assignmentResponse.data);
       const groups = await Promise.all(assignmentResponse.data.map(async (assignment) => ({
         assignment,
-        students: (await getProfessorClassStudents(assignment.classId, assignment.sectionId)).data,
+        students: (await getTeacherClassStudents(assignment.classId, assignment.sectionId)).data,
       })));
       const rows = new Map<string, StudentRow>();
       groups.forEach(({ assignment, students: assignedStudents }) => {
@@ -156,7 +156,7 @@ const Header = () => (
   <div className="mb-8 flex items-start gap-4">
     <div className="rounded-2xl bg-blue-50 p-3 text-blue-600 dark:bg-blue-500/10"><Users size={24} /></div>
     <div>
-      <p className="text-sm font-bold uppercase tracking-widest text-blue-600">Professor Panel</p>
+      <p className="text-sm font-bold uppercase tracking-widest text-blue-600">Teacher Panel</p>
       <h2 className="text-3xl font-black text-slate-900 dark:text-white">My Students</h2>
       <p className="mt-1 text-slate-600 dark:text-slate-300">Only students from your assigned classes and sections are shown.</p>
     </div>
@@ -168,3 +168,5 @@ const Badge: React.FC<{ low: boolean }> = ({ low }) => (
     {low ? 'Low attendance' : 'Regular'}
   </span>
 );
+
+export const ProfessorStudents = TeacherStudents;

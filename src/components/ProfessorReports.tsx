@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { BarChart3, Download, FileText, Search } from 'lucide-react';
-import { getAttendanceSessions, getProfessorAssignments, getProfessorClassStudents, ProfessorAssignment } from '../api/professor';
+import { getAttendanceSessions, getTeacherAssignments, getTeacherClassStudents, TeacherAssignment } from '../api/teacher';
 import { EmptyState, ErrorState, Loader } from './common';
 
 interface ReportRow {
@@ -20,8 +20,8 @@ interface ReportRow {
   percentage: number;
 }
 
-export const ProfessorReports: React.FC = () => {
-  const [assignments, setAssignments] = useState<ProfessorAssignment[]>([]);
+export const TeacherReports: React.FC = () => {
+  const [assignments, setAssignments] = useState<TeacherAssignment[]>([]);
   const [rows, setRows] = useState<ReportRow[]>([]);
   const [filters, setFilters] = useState({ classId: '', sectionId: '', subjectId: '', fromDate: '', toDate: '' });
   const [loading, setLoading] = useState(true);
@@ -32,13 +32,13 @@ export const ProfessorReports: React.FC = () => {
     setError('');
     try {
       const [assignmentResponse, sessionResponse] = await Promise.all([
-        getProfessorAssignments(),
+        getTeacherAssignments(),
         getAttendanceSessions({ page: 1, pageSize: 100, ...filters }),
       ]);
       setAssignments(assignmentResponse.data);
       const groups = await Promise.all(assignmentResponse.data.map(async (assignment) => ({
         assignment,
-        students: (await getProfessorClassStudents(assignment.classId, assignment.sectionId)).data,
+        students: (await getTeacherClassStudents(assignment.classId, assignment.sectionId)).data,
       })));
       const map = new Map<string, ReportRow>();
       groups.forEach(({ assignment, students }) => {
@@ -79,7 +79,7 @@ export const ProfessorReports: React.FC = () => {
       });
       setRows([...map.values()]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not load professor reports.');
+      setError(err instanceof Error ? err.message : 'Could not load teacher reports.');
     } finally {
       setLoading(false);
     }
@@ -139,10 +139,10 @@ export const ProfessorReports: React.FC = () => {
       '',
       ...filteredRows.slice(0, 34).map((row) => `${row.rollNo} - ${row.studentName}: ${row.total === 0 ? 'No records' : `${row.percentage}%`} (${row.total > 0 && row.percentage < 75 ? 'Low' : 'Regular'})`),
     ];
-    downloadBlob(toSimplePdf('AttendanceTracker Professor Report', lines), 'application/pdf', `my_reports_${new Date().toISOString().slice(0, 10)}.pdf`);
+    downloadBlob(toSimplePdf('AttendanceTracker Teacher Report', lines), 'application/pdf', `my_reports_${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 
-  if (loading) return <Loader label="Loading professor reports..." />;
+  if (loading) return <Loader label="Loading teacher reports..." />;
   if (error) return <ErrorState title="Reports unavailable" message={error} onAction={loadReports} />;
   if (assignments.length === 0) return <EmptyState title="No academic assignments found" message="Ask administrator to assign your classes and subjects before reports are available." />;
 
@@ -152,7 +152,7 @@ export const ProfessorReports: React.FC = () => {
         <div className="flex items-start gap-4">
           <div className="rounded-2xl bg-blue-50 p-3 text-blue-600 dark:bg-blue-500/10"><BarChart3 size={24} /></div>
           <div>
-            <p className="text-sm font-bold uppercase tracking-widest text-blue-600">Professor Panel</p>
+            <p className="text-sm font-bold uppercase tracking-widest text-blue-600">Teacher Panel</p>
             <h2 className="text-3xl font-black text-slate-900 dark:text-white">My Reports</h2>
             <p className="mt-1 text-slate-600 dark:text-slate-300">Class, subject, low-attendance, and trend summaries for your assigned students.</p>
           </div>
@@ -236,7 +236,7 @@ export const ProfessorReports: React.FC = () => {
   );
 };
 
-const unique = (items: ProfessorAssignment[], key: keyof ProfessorAssignment) => items.filter((item, index, list) => {
+const unique = (items: TeacherAssignment[], key: keyof TeacherAssignment) => items.filter((item, index, list) => {
   const value = item[key] ?? '';
   return value !== '' && list.findIndex((candidate) => (candidate[key] ?? '') === value) === index;
 });
@@ -295,3 +295,5 @@ const toSimplePdf = (title: string, lines: string[]) => {
   const startXref = offset;
   return `%PDF-1.4\n${body}xref\n0 ${xref.length}\n${xref.join('\n')}\ntrailer\n<< /Size ${xref.length} /Root 1 0 R >>\nstartxref\n${startXref}\n%%EOF`;
 };
+
+export const ProfessorReports = TeacherReports;

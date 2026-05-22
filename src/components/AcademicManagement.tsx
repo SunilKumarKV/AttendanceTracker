@@ -7,9 +7,9 @@ import {
   createAcademicResource,
   deleteAcademicResource,
   getAcademicResource,
-  getProfessors,
-  Professor,
-  ProfessorAssignment,
+  getTeachers,
+  Teacher,
+  TeacherAssignment,
   Section,
   Semester,
   Subject,
@@ -19,7 +19,7 @@ import { ConfirmDialog, EmptyState, ErrorState, Pagination, TableSkeleton } from
 import { useDebounce } from '../hooks';
 
 type TabKey = AcademicResource;
-type AcademicItem = Course | Semester | Section | Subject | ProfessorAssignment;
+type AcademicItem = Course | Semester | Section | Subject | TeacherAssignment;
 type FormState = Record<string, string>;
 type Option = { value: string; label: string; courseId?: string; semesterId?: string | null };
 type OptionGroups = {
@@ -27,7 +27,7 @@ type OptionGroups = {
   semesters: Option[];
   sections: Option[];
   subjects: Option[];
-  professors: Option[];
+  teachers: Option[];
 };
 
 const pageSize = 10;
@@ -45,7 +45,7 @@ const blankForms: Record<TabKey, FormState> = {
   semesters: { courseId: '', name: '', number: '', isActive: 'true' },
   sections: { courseId: '', semesterId: '', name: '', code: '', capacity: '', isActive: 'true' },
   subjects: { courseId: '', semesterId: '', name: '', code: '', credits: '', isActive: 'true' },
-  assignments: { professorId: '', courseId: '', semesterId: '', sectionId: '', subjectId: '', isActive: 'true' },
+  assignments: { teacherId: '', courseId: '', semesterId: '', sectionId: '', subjectId: '', isActive: 'true' },
 };
 
 const labels: Record<TabKey, string> = {
@@ -56,11 +56,11 @@ const labels: Record<TabKey, string> = {
   assignments: 'Assignment',
 };
 
-const isAssignment = (item: AcademicItem): item is ProfessorAssignment => 'professorId' in item && 'subjectId' in item;
+const isAssignment = (item: AcademicItem): item is TeacherAssignment => 'professorId' in item && 'subjectId' in item;
 const isSemester = (item: AcademicItem): item is Semester => 'number' in item;
 
 const itemName = (item: AcademicItem) => {
-  if (isAssignment(item)) return `${item.professor?.name ?? 'Professor'} -> ${item.subject?.name ?? 'Subject'}`;
+  if (isAssignment(item)) return `${item.professor?.name ?? 'Teacher'} -> ${item.subject?.name ?? 'Subject'}`;
   return 'name' in item ? item.name : 'Record';
 };
 
@@ -71,7 +71,7 @@ export const AcademicManagement: React.FC = () => {
   const [semesters, setSemesters] = useState<Semester[]>([]);
   const [sections, setSections] = useState<Section[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [professors, setProfessors] = useState<Professor[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<FormState>({});
   const [page, setPage] = useState(1);
@@ -96,22 +96,22 @@ export const AcademicManagement: React.FC = () => {
     subjects: subjects
       .filter((subject) => (!form.courseId || subject.courseId === form.courseId) && (!form.semesterId || subject.semesterId === form.semesterId))
       .map((subject) => ({ value: subject.id, label: `${subject.name} (${subject.code})`, courseId: subject.courseId, semesterId: subject.semesterId })),
-    professors: professors.map((professor) => ({ value: professor.id, label: `${professor.name} (${professor.employeeId})` })),
-  }), [courses, form.courseId, form.semesterId, professors, sections, semesters, subjects]);
+    teachers: teachers.map((teacher) => ({ value: teacher.id, label: `${teacher.name} (${teacher.employeeId})` })),
+  }), [courses, form.courseId, form.semesterId, teachers, sections, semesters, subjects]);
 
   const loadReferences = useCallback(async () => {
-    const [courseResponse, semesterResponse, sectionResponse, subjectResponse, professorResponse] = await Promise.all([
+    const [courseResponse, semesterResponse, sectionResponse, subjectResponse, teacherResponse] = await Promise.all([
       getAcademicResource<Course>('classes', { pageSize: 100 }),
       getAcademicResource<Semester>('semesters', { pageSize: 100 }),
       getAcademicResource<Section>('sections', { pageSize: 100 }),
       getAcademicResource<Subject>('subjects', { pageSize: 100 }),
-      getProfessors('', 1, 100),
+      getTeachers('', 1, 100),
     ]);
     setCourses(courseResponse.data.items);
     setSemesters(semesterResponse.data.items);
     setSections(sectionResponse.data.items);
     setSubjects(subjectResponse.data.items);
-    setProfessors(professorResponse.data.items);
+    setTeachers(teacherResponse.data.items);
   }, []);
 
   const loadItems = useCallback(async () => {
@@ -126,7 +126,7 @@ export const AcademicManagement: React.FC = () => {
         semesterId: filters.semesterId,
         sectionId: filters.sectionId,
         subjectId: filters.subjectId,
-        professorId: filters.professorId,
+        professorId: filters.teacherId,
       };
       const response = await getAcademicResource<AcademicItem>(activeTab, params);
       setItems(response.data.items);
@@ -136,7 +136,7 @@ export const AcademicManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, debouncedSearch, filters.courseId, filters.professorId, filters.sectionId, filters.semesterId, filters.subjectId, page]);
+  }, [activeTab, debouncedSearch, filters.courseId, filters.teacherId, filters.sectionId, filters.semesterId, filters.subjectId, page]);
 
   useEffect(() => {
     setPage(1);
@@ -158,7 +158,7 @@ export const AcademicManagement: React.FC = () => {
       setForm(blankForms[activeTab]);
     } else if (isAssignment(item)) {
       setForm({
-        professorId: item.professorId,
+        teacherId: item.professorId,
         courseId: item.courseId,
         semesterId: item.semesterId ?? '',
         sectionId: item.sectionId ?? '',
@@ -186,7 +186,7 @@ export const AcademicManagement: React.FC = () => {
     if (activeTab === 'sections') return { courseId: form.courseId, semesterId: form.semesterId || null, name: form.name.trim(), code: form.code?.trim() || form.name.trim(), capacity: form.capacity ? Number(form.capacity) : null, isActive: form.isActive !== 'false' };
     if (activeTab === 'subjects') return { courseId: form.courseId, semesterId: form.semesterId || null, name: form.name.trim(), code: form.code.trim(), credits: form.credits ? Number(form.credits) : null, isActive: form.isActive !== 'false' };
     return {
-      professorId: form.professorId,
+      professorId: form.teacherId,
       courseId: form.courseId,
       semesterId: form.semesterId || null,
       sectionId: form.sectionId || null,
@@ -201,7 +201,7 @@ export const AcademicManagement: React.FC = () => {
       semesters: ['courseId', 'name', 'number'],
       sections: ['courseId', 'semesterId', 'name', 'code'],
       subjects: ['courseId', 'name', 'code'],
-      assignments: ['professorId', 'courseId', 'semesterId', 'sectionId', 'subjectId'],
+      assignments: ['teacherId', 'courseId', 'semesterId', 'sectionId', 'subjectId'],
     };
     const missing = required[activeTab].filter((key) => !form[key]?.trim());
     if (missing.length > 0) {
@@ -270,7 +270,7 @@ export const AcademicManagement: React.FC = () => {
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h2 className="text-3xl font-bold text-slate-900 dark:text-white">Academic Management</h2>
-          <p className="text-slate-500 dark:text-slate-400">Manage classes, terms, sections, subjects, and professor assignments.</p>
+          <p className="text-slate-500 dark:text-slate-400">Manage classes, terms, sections, subjects, and teacher assignments.</p>
         </div>
         <button type="button" onClick={() => openModal()} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700">
           <Plus size={18} />
@@ -311,7 +311,7 @@ export const AcademicManagement: React.FC = () => {
               <Filter className="mt-2 text-slate-400" size={18} />
               <Select value={filters.courseId ?? ''} onChange={(value) => setFilters((current) => ({ ...current, courseId: value || undefined, semesterId: undefined, sectionId: undefined, subjectId: undefined }))} options={options.courses} placeholder="All classes" />
               {(activeTab === 'sections' || activeTab === 'subjects' || activeTab === 'assignments') && <Select value={filters.semesterId ?? ''} onChange={(value) => setFilters((current) => ({ ...current, semesterId: value || undefined }))} options={options.semesters} placeholder="All semesters" />}
-              {activeTab === 'assignments' && <Select value={filters.professorId ?? ''} onChange={(value) => setFilters((current) => ({ ...current, professorId: value || undefined }))} options={options.professors} placeholder="All professors" />}
+              {activeTab === 'assignments' && <Select value={filters.teacherId ?? ''} onChange={(value) => setFilters((current) => ({ ...current, teacherId: value || undefined }))} options={options.teachers} placeholder="All teachers" />}
             </div>
           ) : null}
         </div>
@@ -390,7 +390,7 @@ const headers = (tab: TabKey) => {
   if (tab === 'semesters') return ['Name', 'Number', 'Class', 'Status'];
   if (tab === 'sections') return ['Name', 'Code', 'Class', 'Semester', 'Capacity', 'Status'];
   if (tab === 'subjects') return ['Name', 'Code', 'Class', 'Semester', 'Credits', 'Status'];
-  return ['Professor', 'Class', 'Semester', 'Section', 'Subject', 'Status'];
+  return ['Teacher', 'Class', 'Semester', 'Section', 'Subject', 'Status'];
 };
 
 const cells = (tab: TabKey, item: AcademicItem) => {
@@ -459,7 +459,7 @@ const formFields = (tab: TabKey, form: FormState, options: OptionGroups): FieldC
     { name: 'isActive', label: 'Status', options: [{ value: 'true', label: 'Active' }, { value: 'false', label: 'Inactive' }] },
   ];
   return [
-    { name: 'professorId', label: 'Professor', options: options.professors, required: true },
+    { name: 'teacherId', label: 'Teacher', options: options.teachers, required: true },
     { name: 'courseId', label: 'Class', options: options.courses, required: true },
     { name: 'semesterId', label: 'Semester', options: semesterOptions, required: true },
     { name: 'sectionId', label: 'Section', options: sectionOptions, required: true },

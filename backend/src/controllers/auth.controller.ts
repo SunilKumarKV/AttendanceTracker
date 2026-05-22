@@ -25,17 +25,3 @@ export const changePassword = async (request: Request, response: Response) => {
   );
   response.status(StatusCodes.OK).json({ success: true });
 };
-
-export const forgotPassword = (_request: Request, response: Response) => {
-  response.status(StatusCodes.ACCEPTED).json({
-    success: true,
-    message: 'If an account exists for this email, password reset instructions will be sent.',
-  });
-};
-
-export const resetPassword = (_request: Request, response: Response) => {
-  response.status(StatusCodes.NOT_IMPLEMENTED).json({
-    success: false,
-    message: 'Password reset is not implemented yet.',
-  });
-};

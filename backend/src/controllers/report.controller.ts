@@ -25,6 +25,10 @@ export const subject = async (request: Request, response: Response) => {
   response.status(StatusCodes.OK).json({ success: true, data: await reportService.getSubjectReport(contextFrom(request), request.params.subjectId, request.query) });
 };
 
+export const dateReport = async (request: Request, response: Response) => {
+  response.status(StatusCodes.OK).json({ success: true, data: await reportService.getDateReport(contextFrom(request), request.params.date, request.query) });
+};
+
 export const lowAttendance = async (request: Request, response: Response) => {
   response.status(StatusCodes.OK).json({ success: true, data: await reportService.getLowAttendance(contextFrom(request), request.query) });
 };

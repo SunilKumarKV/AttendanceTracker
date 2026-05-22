@@ -17,11 +17,11 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  createProfessor,
-  deleteProfessor,
-  getProfessors,
-  Professor,
-  updateProfessor,
+  createTeacher,
+  deleteTeacher,
+  getTeachers,
+  Teacher,
+  updateTeacher,
 } from '../api/admin';
 import { ConfirmDialog, EmptyState, ErrorState } from './common';
 import { Pagination, TableSkeleton } from './common';
@@ -38,12 +38,12 @@ const emptyForm = {
   isActive: 'true',
 };
 
-export const ManageProfessors: React.FC = () => {
-  const [professors, setProfessors] = useState<Professor[]>([]);
+export const ManageTeachers: React.FC = () => {
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProfessor, setEditingProfessor] = useState<Professor | null>(null);
-  const [deletingProfessor, setDeletingProfessor] = useState<Professor | null>(null);
+  const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
+  const [deletingTeacher, setDeletingTeacher] = useState<Teacher | null>(null);
   const [formData, setFormData] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -54,15 +54,15 @@ export const ManageProfessors: React.FC = () => {
   const pageSize = 10;
   const debouncedSearch = useDebounce(searchTerm, 300);
 
-  const fetchProfessors = useCallback(async (search = debouncedSearch, nextPage = page) => {
+  const fetchTeachers = useCallback(async (search = debouncedSearch, nextPage = page) => {
     setLoading(true);
     setError('');
     try {
-      const response = await getProfessors(search, nextPage, pageSize);
-      setProfessors(response.data.items);
+      const response = await getTeachers(search, nextPage, pageSize);
+      setTeachers(response.data.items);
       setTotal(response.data.pagination.total);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not load professors.');
+      setError(err instanceof Error ? err.message : 'Could not load teachers.');
     } finally {
       setLoading(false);
     }
@@ -73,11 +73,11 @@ export const ManageProfessors: React.FC = () => {
   }, [debouncedSearch]);
 
   useEffect(() => {
-    void fetchProfessors(debouncedSearch, page);
-  }, [debouncedSearch, fetchProfessors, page]);
+    void fetchTeachers(debouncedSearch, page);
+  }, [debouncedSearch, fetchTeachers, page]);
 
-  const handleOpenModal = (prof: Professor | null = null) => {
-    setEditingProfessor(prof);
+  const handleOpenModal = (prof: Teacher | null = null) => {
+    setEditingTeacher(prof);
     setFormData(prof ? {
       name: prof.name,
       email: prof.email,
@@ -93,7 +93,7 @@ export const ManageProfessors: React.FC = () => {
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
-    setEditingProfessor(null);
+    setEditingTeacher(null);
     setFormData(emptyForm);
   };
 
@@ -101,32 +101,32 @@ export const ManageProfessors: React.FC = () => {
     e.preventDefault();
     setSaving(true);
     try {
-      if (editingProfessor) {
-        await updateProfessor(editingProfessor.id!, { ...formData, isActive: formData.isActive !== 'false' });
-        toast.success('Professor updated successfully');
+      if (editingTeacher) {
+        await updateTeacher(editingTeacher.id!, { ...formData, isActive: formData.isActive !== 'false' });
+        toast.success('Teacher updated successfully');
       } else {
-        await createProfessor({ ...formData, isActive: formData.isActive !== 'false' });
-        toast.success('Professor added successfully');
+        await createTeacher({ ...formData, isActive: formData.isActive !== 'false' });
+        toast.success('Teacher added successfully');
       }
       handleCloseModal();
-      await fetchProfessors();
+      await fetchTeachers();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not save professor.');
+      toast.error(err instanceof Error ? err.message : 'Could not save teacher.');
     } finally {
       setSaving(false);
     }
   };
 
   const confirmDelete = async () => {
-    if (!deletingProfessor) return;
+    if (!deletingTeacher) return;
     setSaving(true);
     try {
-      await deleteProfessor(deletingProfessor.id!);
-      toast.success('Professor removed');
-      setDeletingProfessor(null);
-      await fetchProfessors();
+      await deleteTeacher(deletingTeacher.id!);
+      toast.success('Teacher removed');
+      setDeletingTeacher(null);
+      await fetchTeachers();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not delete professor.');
+      toast.error(err instanceof Error ? err.message : 'Could not delete teacher.');
     } finally {
       setSaving(false);
     }
@@ -139,7 +139,7 @@ export const ManageProfessors: React.FC = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
           <input
             type="text"
-            aria-label="Search professors"
+            aria-label="Search teachers"
             placeholder="Search by name, ID or email..."
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
             value={searchTerm}
@@ -151,23 +151,23 @@ export const ManageProfessors: React.FC = () => {
           className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 active:scale-95"
         >
           <UserPlus size={20} />
-          <span>Add Professor</span>
+          <span>Add Teacher</span>
         </button>
       </div>
 
       {error ? (
-        <ErrorState title="Could not load professors" message={error} onAction={() => void fetchProfessors()} />
+        <ErrorState title="Could not load teachers" message={error} onAction={() => void fetchTeachers()} />
       ) : loading ? (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm dark:border-slate-800 dark:bg-slate-900"><TableSkeleton rows={6} columns={5} /></div>
-      ) : professors.length === 0 ? (
-        <EmptyState title="No professors found" message="Try a different search or add a professor to start assigning subjects." actionLabel="Add Professor" onAction={() => handleOpenModal()} />
+      ) : teachers.length === 0 ? (
+        <EmptyState title="No teachers found" message="Try a different search or add a teacher to start assigning subjects." actionLabel="Add Teacher" onAction={() => handleOpenModal()} />
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50/50 border-b border-slate-200">
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Professor</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Teacher</th>
                   <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Employee ID</th>
                   <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Subject</th>
                   <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Department</th>
@@ -177,7 +177,7 @@ export const ManageProfessors: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {professors.map((prof) => (
+                {teachers.map((prof) => (
                   <tr key={prof.id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -213,10 +213,10 @@ export const ManageProfessors: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => handleOpenModal(prof)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit Professor" aria-label={`Edit ${prof.name}`}>
+                        <button onClick={() => handleOpenModal(prof)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit Teacher" aria-label={`Edit ${prof.name}`}>
                           <Edit2 size={18} />
                         </button>
-                        <button onClick={() => setDeletingProfessor(prof)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete Professor" aria-label={`Delete ${prof.name}`}>
+                        <button onClick={() => setDeletingTeacher(prof)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete Teacher" aria-label={`Delete ${prof.name}`}>
                           <Trash2 size={18} />
                         </button>
                       </div>
@@ -237,14 +237,14 @@ export const ManageProfessors: React.FC = () => {
             <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
-                  {editingProfessor ? <Edit2 className="text-white w-5 h-5" /> : <UserPlus className="text-white w-5 h-5" />}
+                  {editingTeacher ? <Edit2 className="text-white w-5 h-5" /> : <UserPlus className="text-white w-5 h-5" />}
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">{editingProfessor ? 'Edit Professor' : 'Add New Professor'}</h3>
-                  <p className="text-xs text-slate-500 font-medium">{editingProfessor ? 'Update existing faculty details' : 'Register a new faculty member'}</p>
+                  <h3 className="text-lg font-bold text-slate-900">{editingTeacher ? 'Edit Teacher' : 'Add New Teacher'}</h3>
+                  <p className="text-xs text-slate-500 font-medium">{editingTeacher ? 'Update existing faculty details' : 'Register a new faculty member'}</p>
                 </div>
               </div>
-              <button onClick={handleCloseModal} aria-label="Close professor form" className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-all">
+              <button onClick={handleCloseModal} aria-label="Close teacher form" className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-all">
                 <X size={20} />
               </button>
             </div>
@@ -256,14 +256,14 @@ export const ManageProfessors: React.FC = () => {
                 <Field icon={<BookOpen size={14} />} label="Subject" value={formData.subject} onChange={(subject) => setFormData({ ...formData, subject })} />
                 <Field icon={<Phone size={14} />} label="Phone Number" value={formData.phone} onChange={(phone) => setFormData({ ...formData, phone })} />
                 <Field icon={<Building2 size={14} />} label="Department" value={formData.department} onChange={(department) => setFormData({ ...formData, department })} />
-                {!editingProfessor && (
+                {!editingTeacher && (
                   <PasswordField value={formData.password} show={showPassword} onToggle={() => setShowPassword((value) => !value)} onChange={(password) => setFormData({ ...formData, password })} />
                 )}
                 <SelectField label="Status" value={formData.isActive} onChange={(isActive) => setFormData({ ...formData, isActive })} />
               </div>
-              {editingProfessor && (
+              {editingTeacher && (
                 <div className="mt-6 rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-600">
-                  Reset password is intentionally handled through the secure change/forgot password flow. Create-time password is available only when registering a new professor.
+                  Reset password is intentionally handled through the secure change/forgot password flow. Create-time password is available only when registering a new teacher.
                 </div>
               )}
               <div className="mt-8 flex items-center justify-end gap-3">
@@ -272,7 +272,7 @@ export const ManageProfessors: React.FC = () => {
                 </button>
                 <button type="submit" disabled={saving} className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 active:scale-95 disabled:opacity-50 flex items-center gap-2">
                   {saving ? <Loader2 className="animate-spin" size={18} /> : null}
-                  {editingProfessor ? 'Save Changes' : 'Register Professor'}
+                  {editingTeacher ? 'Save Changes' : 'Register Teacher'}
                 </button>
               </div>
             </form>
@@ -281,12 +281,12 @@ export const ManageProfessors: React.FC = () => {
       )}
 
       <ConfirmDialog
-        open={Boolean(deletingProfessor)}
-        title="Remove Professor?"
-        message={`Are you sure you want to remove ${deletingProfessor?.name ?? 'this professor'}?`}
+        open={Boolean(deletingTeacher)}
+        title="Remove Teacher?"
+        message={`Are you sure you want to remove ${deletingTeacher?.name ?? 'this teacher'}?`}
         confirmLabel="Remove"
         destructive
-        onCancel={() => setDeletingProfessor(null)}
+        onCancel={() => setDeletingTeacher(null)}
         onConfirm={confirmDelete}
       />
     </div>
@@ -353,3 +353,5 @@ const SelectField: React.FC<{ label: string; value: string; onChange: (value: st
     </select>
   </div>
 );
+
+export const ManageProfessors = ManageTeachers;

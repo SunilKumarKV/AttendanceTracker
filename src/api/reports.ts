@@ -35,6 +35,7 @@ export interface ReportStudent {
   attended: number;
   attendancePercentage: number;
   status: 'Regular' | 'Shortage';
+  lowAttendanceSeverity: 'OK' | 'BELOW_75' | 'BELOW_65' | 'CRITICAL_BELOW_50';
 }
 
 export interface ReportOverview {
@@ -50,12 +51,22 @@ export interface ReportOverview {
     studentCount: number;
     absentToday: number;
     reportsExportedThisMonth: number;
+    lowAttendanceBands: {
+      below75: number;
+      below65: number;
+      criticalBelow50: number;
+    };
   };
   students: ReportStudent[];
 }
 
 export interface LowAttendanceReport {
   threshold: number;
+  bands: {
+    below75: number;
+    below65: number;
+    criticalBelow50: number;
+  };
   students: ReportStudent[];
 }
 
@@ -111,6 +122,10 @@ export const getLowAttendanceReport = (filters: ReportFilters) => (
 
 export const getMonthlyReport = (filters: ReportFilters) => (
   apiClient<ApiResponse<ReportOverview>>(`/reports/monthly${queryString(filters)}`)
+);
+
+export const getDateReport = (date: string, filters: ReportFilters = {}) => (
+  apiClient<ApiResponse<ReportOverview>>(`/reports/date/${encodeURIComponent(date)}${queryString(filters)}`)
 );
 
 export const downloadReportCsv = (filters: ReportFilters) => (

@@ -3,11 +3,11 @@ import { randomBytes } from 'node:crypto';
 import { prisma } from '../src/config/prisma.js';
 
 if (process.env.NODE_ENV === 'production') {
-  throw new Error('Refusing to run development demo seed in production. Use npm run seed:first-admin instead.');
+  throw new Error('Refusing to run development seed in production. Use npm run seed:first-admin instead.');
 }
 
 const institutionSeed = {
-  name: 'AttendanceTracker Demo Institution',
+  name: 'AttendanceTracker Local Institution',
   code: 'ATT-DEMO',
   email: 'admin@attendancetracker.local',
 };
@@ -61,17 +61,17 @@ async function main() {
     where: { email: 'professor@attendancetracker.local' },
     update: {
       institutionId: institution.id,
-      name: 'Development Professor',
+      name: 'Development Teacher',
       passwordHash,
-      role: 'PROFESSOR',
+      role: 'TEACHER',
       isActive: true,
     },
     create: {
       institutionId: institution.id,
-      name: 'Development Professor',
+      name: 'Development Teacher',
       email: 'professor@attendancetracker.local',
       passwordHash,
-      role: 'PROFESSOR',
+      role: 'TEACHER',
       isActive: true,
     },
   });
@@ -82,7 +82,7 @@ async function main() {
       institutionId: institution.id,
       employeeCode: 'PROF-DEMO-001',
       department: 'Computer Science',
-      designation: 'Professor',
+      designation: 'Teacher',
       phone: '9876500000',
     },
     create: {
@@ -90,7 +90,7 @@ async function main() {
       userId: professor.id,
       employeeCode: 'PROF-DEMO-001',
       department: 'Computer Science',
-      designation: 'Professor',
+      designation: 'Teacher',
       phone: '9876500000',
     },
   });
@@ -99,14 +99,14 @@ async function main() {
     where: { institutionId_code: { institutionId: institution.id, code: 'CSE' } },
     update: {
       name: 'Computer Science Engineering',
-      description: 'Demo class for local testing',
+      description: 'Local class for development testing',
       isActive: true,
     },
     create: {
       institutionId: institution.id,
       name: 'Computer Science Engineering',
       code: 'CSE',
-      description: 'Demo class for local testing',
+      description: 'Local class for development testing',
       isActive: true,
     },
   });
@@ -226,9 +226,9 @@ async function main() {
     });
   }
 
-  console.log('Development admin, professor, class, assignment, and students seeded.');
+  console.log('Development admin, teacher, class, assignment, and students seeded.');
   console.log('Admin email: admin@attendancetracker.local');
-  console.log('Professor email: professor@attendancetracker.local');
+  console.log('Teacher email: professor@attendancetracker.local');
   console.log(`Default password: ${defaultPassword}`);
 }
 

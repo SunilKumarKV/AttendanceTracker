@@ -17,6 +17,7 @@ export interface AppSettingsData {
   academicYear: string;
   principalName: string;
   theme: 'light' | 'dark';
+  attendanceLockAfterSubmit: boolean;
   timezone: string;
   minimumAttendancePct: number;
   notificationEnabled: boolean;

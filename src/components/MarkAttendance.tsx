@@ -18,12 +18,12 @@ import {
   createAttendanceSession,
   getAttendanceSession,
   getAttendanceSessions,
-  getProfessorAssignments,
-  getProfessorClassStudents,
+  getTeacherAssignments,
+  getTeacherClassStudents,
   lockAttendanceSession,
-  ProfessorAssignment,
+  TeacherAssignment,
   updateAttendanceSession,
-} from '../api/professor';
+} from '../api/teacher';
 import { AttendanceStatus, Student } from '../types';
 import { ConfirmDialog, EmptyState, ErrorState, Loader } from './common';
 
@@ -51,7 +51,7 @@ export const MarkAttendance: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get('session');
-  const [assignments, setAssignments] = useState<ProfessorAssignment[]>([]);
+  const [assignments, setAssignments] = useState<TeacherAssignment[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [history, setHistory] = useState<AttendanceSession[]>([]);
   const [selectedClassId, setSelectedClassId] = useState('');
@@ -107,21 +107,21 @@ export const MarkAttendance: React.FC = () => {
   const isLocked = Boolean(editingSession?.isLocked);
   const canSave = Boolean(selectedAssignment) && students.length > 0 && unmarkedCount === 0 && !duplicateSession && !isLocked;
 
-  const applyAssignment = (assignment: ProfessorAssignment | null) => {
+  const applyAssignment = (assignment: TeacherAssignment | null) => {
     setSelectedClassId(assignment?.classId ?? '');
     setSelectedSemesterId(assignment?.semesterId ?? '');
     setSelectedSectionId(assignment?.sectionId ?? '');
     setSelectedSubjectId(assignment?.subjectId ?? '');
   };
 
-  const loadStudents = useCallback(async (assignment: ProfessorAssignment | null, keepMarks = false) => {
+  const loadStudents = useCallback(async (assignment: TeacherAssignment | null, keepMarks = false) => {
     if (!assignment) {
       setStudents([]);
       return;
     }
     setStudentsLoading(true);
     try {
-      const response = await getProfessorClassStudents(assignment.classId, assignment.sectionId);
+      const response = await getTeacherClassStudents(assignment.classId, assignment.sectionId);
       setStudents(response.data);
       if (!keepMarks) {
         setAttendance({});
@@ -139,7 +139,7 @@ export const MarkAttendance: React.FC = () => {
     setError('');
     try {
       const [assignmentResponse, historyResponse] = await Promise.all([
-        getProfessorAssignments(),
+        getTeacherAssignments(),
         getAttendanceSessions({ page: 1, pageSize: 100 }),
       ]);
       setAssignments(assignmentResponse.data);
@@ -292,7 +292,7 @@ export const MarkAttendance: React.FC = () => {
     <div className="mx-auto max-w-7xl pb-12">
       <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-sm font-bold uppercase tracking-widest text-blue-600">Professor Workflow</p>
+          <p className="text-sm font-bold uppercase tracking-widest text-blue-600">Teacher Workflow</p>
           <h2 className="text-3xl font-black text-slate-900 dark:text-white">Take Attendance</h2>
           <p className="mt-1 text-slate-600 dark:text-slate-300">Select an assigned class, load students, mark each status, then save or lock the session.</p>
         </div>

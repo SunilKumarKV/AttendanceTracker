@@ -226,10 +226,10 @@ export const Reports: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-6">
             <Stat icon={<BarChart3 />} label="Total Students" value={report.summary.studentCount} />
             <Stat icon={report.summary.averageAttendance >= (filters.threshold ?? 75) ? <TrendingUp /> : <TrendingDown />} label="Avg Attendance" value={`${report.summary.averageAttendance}%`} />
-            <Stat icon={<TrendingDown />} label="Low Attendance" value={report.summary.lowAttendanceCount} tone="danger" />
+            <Stat icon={<TrendingDown />} label="Below 75%" value={report.summary.lowAttendanceBands?.below75 ?? report.summary.lowAttendanceCount} tone="danger" />
+            <Stat icon={<TrendingDown />} label="Below 65%" value={report.summary.lowAttendanceBands?.below65 ?? 0} tone="danger" />
+            <Stat icon={<TrendingDown />} label="Critical <50%" value={report.summary.lowAttendanceBands?.criticalBelow50 ?? 0} tone="danger" />
             <Stat icon={<BookOpen />} label="Sessions" value={report.summary.sessions} />
-            <Stat icon={<TrendingDown />} label="Absent Today" value={report.summary.absentToday} tone="danger" />
-            <Stat icon={<FileText />} label="Exports This Month" value={report.summary.reportsExportedThisMonth} />
           </div>
 
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden print:shadow-none print:border-slate-300">

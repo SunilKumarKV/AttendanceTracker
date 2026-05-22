@@ -11,12 +11,12 @@ const user = {
 const professor = {
   id: 'prof-1',
   institutionId: 'inst-1',
-  name: 'Professor User',
+  name: 'Teacher User',
   email: 'professor@example.com',
-  role: 'PROFESSOR',
+  role: 'TEACHER',
 };
 
-const api = (path: string) => `**/api${path}`;
+const api = (path: string) => `**/api${path}**`;
 
 test.beforeEach(async ({ page }) => {
   await page.route(api('/auth/login'), async (route) => {

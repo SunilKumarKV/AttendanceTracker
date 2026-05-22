@@ -22,7 +22,7 @@ export const Login: React.FC = () => {
     try {
       const user = await login(email, password);
       toast.success('Welcome back.');
-      navigate(user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' ? '/dashboard' : '/professor-dashboard');
+      navigate(user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' || user.role === 'HOD' ? '/dashboard' : '/professor-dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid email or password.');
     } finally {
@@ -46,7 +46,7 @@ export const Login: React.FC = () => {
             <p className="mt-5 max-w-lg text-lg leading-8 text-slate-300">Use real authentication, role-aware dashboards, reports, alerts, and settings from one workspace.</p>
           </div>
           <div className="grid grid-cols-3 gap-4">
-            {['Admin', 'Professor', 'Reports'].map((item) => (
+            {['Super Admin', 'Admin', 'Teacher'].map((item) => (
               <div key={item} className="rounded-2xl bg-white/10 p-4">
                 <p className="text-sm font-black text-slate-300">{item}</p>
               </div>
@@ -65,7 +65,7 @@ export const Login: React.FC = () => {
                 <GraduationCap size={32} />
               </div>
               <h1 className="text-3xl font-black">Sign in to AttendanceTracker</h1>
-              <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">Use your admin or professor account to continue.</p>
+              <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">Use your admin or teacher account to continue.</p>
             </div>
 
             <form onSubmit={handleSubmit} className="rounded-3xl border border-slate-100 bg-white p-6 shadow-xl shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:p-8">

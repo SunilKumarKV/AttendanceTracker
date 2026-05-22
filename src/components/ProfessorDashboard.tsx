@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, BookOpen, CalendarCheck, Clock, GraduationCap, Lock } from 'lucide-react';
-import { getAttendanceSessions, getProfessorClassStudents, getProfessorDashboard, ProfessorDashboard as DashboardData } from '../api/professor';
+import { getAttendanceSessions, getTeacherClassStudents, getTeacherDashboard, TeacherDashboard as DashboardData } from '../api/teacher';
 import { EmptyState, ErrorState, Loader } from './common';
 
-export const ProfessorDashboard: React.FC = () => {
+export const TeacherDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [data, setData] = useState<DashboardData | null>(null);
   const [lowAttendanceCount, setLowAttendanceCount] = useState(0);
@@ -15,11 +15,11 @@ export const ProfessorDashboard: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const response = await getProfessorDashboard();
+      const response = await getTeacherDashboard();
       setData(response.data);
       const [sessionsResponse, studentGroups] = await Promise.all([
         getAttendanceSessions({ page: 1, pageSize: 100 }),
-        Promise.all(response.data.assignments.map((assignment) => getProfessorClassStudents(assignment.classId, assignment.sectionId).then((students) => students.data))),
+        Promise.all(response.data.assignments.map((assignment) => getTeacherClassStudents(assignment.classId, assignment.sectionId).then((students) => students.data))),
       ]);
       const studentMap = new Map<string, { total: number; attended: number }>();
       studentGroups.flat().forEach((student) => {
@@ -35,7 +35,7 @@ export const ProfessorDashboard: React.FC = () => {
       });
       setLowAttendanceCount([...studentMap.values()].filter((item) => item.total > 0 && (item.attended / item.total) * 100 < 75).length);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not load professor dashboard.');
+      setError(err instanceof Error ? err.message : 'Could not load teacher dashboard.');
     } finally {
       setLoading(false);
     }
@@ -47,7 +47,7 @@ export const ProfessorDashboard: React.FC = () => {
 
   const todaySessions = useMemo(() => data?.recentSessions.filter((session) => session.sessionDate.slice(0, 10) === new Date().toISOString().slice(0, 10)) ?? [], [data]);
 
-  if (loading) return <Loader label="Loading professor dashboard..." />;
+  if (loading) return <Loader label="Loading teacher dashboard..." />;
   if (error) return <ErrorState title="Dashboard unavailable" message={error} onAction={loadDashboard} />;
   if (!data) return <EmptyState title="No dashboard data" message="Assignments and attendance sessions will appear here." />;
 
@@ -64,7 +64,7 @@ export const ProfessorDashboard: React.FC = () => {
     <div className="space-y-8 pb-12">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="text-sm font-bold uppercase tracking-widest text-blue-600">Professor Panel</p>
+          <p className="text-sm font-bold uppercase tracking-widest text-blue-600">Teacher Panel</p>
           <h2 className="text-3xl font-black text-slate-900 dark:text-white">Dashboard</h2>
           <p className="mt-1 text-slate-600 dark:text-slate-300">Your assigned classes, attendance workload, and recent activity.</p>
         </div>
@@ -148,3 +148,5 @@ const Stat: React.FC<{ icon: React.ReactNode; label: string; value: number; tone
     </div>
   );
 };
+
+export const ProfessorDashboard = TeacherDashboard;

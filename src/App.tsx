@@ -21,11 +21,6 @@ const Notifications = lazy(() => import('./components/Notifications').then((modu
 const Reports = lazy(() => import('./components/Reports').then((module) => ({ default: module.Reports })));
 const ManageProfessors = lazy(() => import('./components/ManageProfessors').then((module) => ({ default: module.ManageProfessors })));
 const AcademicManagement = lazy(() => import('./components/AcademicManagement').then((module) => ({ default: module.AcademicManagement })));
-const LandingPage = lazy(() => import('./pages').then((module) => ({ default: module.LandingPage })));
-const DemoPage = lazy(() => import('./pages').then((module) => ({ default: module.DemoPage })));
-const PricingPage = lazy(() => import('./pages').then((module) => ({ default: module.PricingPage })));
-const TermsPage = lazy(() => import('./pages').then((module) => ({ default: module.TermsPage })));
-const PrivacyPage = lazy(() => import('./pages').then((module) => ({ default: module.PrivacyPage })));
 
 export default function App() {
   return (
@@ -35,18 +30,13 @@ export default function App() {
           <ToastSetup />
           <Suspense fallback={<Loader label="Loading page..." />}>
           <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/demo" element={<DemoPage />} />
-          <Route path="/pricing" element={<PricingPage />} />
-          <Route path="/terms" element={<TermsPage />} />
-          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
           
-          {/* Professor Attendance Routes */}
           <Route
             path="/mark-attendance"
             element={
-              <RoleRoute allowedRoles={['PROFESSOR']}>
+              <RoleRoute allowedRoles={['TEACHER', 'PROFESSOR']}>
                 <MarkAttendance />
               </RoleRoute>
             }
@@ -62,13 +52,12 @@ export default function App() {
           <Route
             path="/professor-profile"
             element={
-              <RoleRoute allowedRoles={['PROFESSOR']}>
+              <RoleRoute allowedRoles={['TEACHER', 'PROFESSOR']}>
                 <ProfessorProfile />
               </RoleRoute>
             }
           />
 
-          {/* Admin Only Routes */}
           <Route
             path="/dashboard"
             element={
@@ -94,7 +83,6 @@ export default function App() {
             }
           />
 
-          {/* Routes restricted for Professors (redirect to /mark-attendance) */}
           <Route
             path="/students"
             element={
@@ -128,11 +116,10 @@ export default function App() {
             }
           />
 
-          {/* Professor Specific Routes */}
           <Route
             path="/professor-dashboard"
             element={
-              <RoleRoute allowedRoles={['PROFESSOR']}>
+              <RoleRoute allowedRoles={['TEACHER', 'PROFESSOR']}>
                 <ProfessorDashboard />
               </RoleRoute>
             }
@@ -140,7 +127,7 @@ export default function App() {
           <Route
             path="/my-students"
             element={
-              <RoleRoute allowedRoles={['PROFESSOR']}>
+              <RoleRoute allowedRoles={['TEACHER', 'PROFESSOR']}>
                 <ProfessorStudents />
               </RoleRoute>
             }
@@ -148,7 +135,7 @@ export default function App() {
           <Route
             path="/attendance-history"
             element={
-              <RoleRoute allowedRoles={['PROFESSOR']}>
+              <RoleRoute allowedRoles={['TEACHER', 'PROFESSOR']}>
                 <AttendanceHistory />
               </RoleRoute>
             }
@@ -156,7 +143,7 @@ export default function App() {
           <Route
             path="/my-reports"
             element={
-              <RoleRoute allowedRoles={['PROFESSOR']}>
+              <RoleRoute allowedRoles={['TEACHER', 'PROFESSOR']}>
                 <ProfessorReports />
               </RoleRoute>
             }
@@ -164,7 +151,7 @@ export default function App() {
           <Route
             path="/professor-settings"
             element={
-              <RoleRoute allowedRoles={['PROFESSOR']}>
+              <RoleRoute allowedRoles={['TEACHER', 'PROFESSOR']}>
                 <ProfessorSettings />
               </RoleRoute>
             }

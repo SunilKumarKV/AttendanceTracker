@@ -209,7 +209,7 @@ const messageForRule = async (rule: string, studentId?: string, settings?: Await
   const rollNo = student?.rollNumber ?? 'TEST-001';
   const stats = student ? await calculateStudentAttendance(student.id) : { total: 30, attended: 20, percentage: 66.7 };
   const level = settings ? severityForPercentage(stats.percentage, settings) : 'WARNING';
-  const courseLine = student ? `${student.course.name} / ${student.section.name}` : 'Demo Class';
+  const courseLine = student ? `${student.course.name} / ${student.section.name}` : 'Institution Class';
 
   if (rule === 'absent_alert') {
     return { student, subject: 'Absent Alert', message: `AttendancePro Alert: ${studentName} (${rollNo}) was marked absent today. Class: ${courseLine}. Please contact the institution if this needs correction.` };
