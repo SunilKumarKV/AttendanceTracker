@@ -20,7 +20,12 @@
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "seed": "npm run prisma:seed",
+    "db:generate": "npm run prisma:generate",
+    "db:migrate": "npm run prisma:migrate",
+    "db:seed": "npm run prisma:seed",
+    "db:first-admin": "npm run seed:first-admin"
   },
   "dependencies": {
     "@prisma/client": "^6.8.2",

@@ -50,7 +50,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
             <RefreshCw size={20} />
             Refresh Page
           </button>
-          {process.env.NODE_ENV === 'development' && (
+          {import.meta.env.DEV && (
             <div className="mt-8 p-4 bg-slate-50 rounded-xl text-left overflow-auto max-w-full">
               <p className="text-xs font-mono text-red-600 whitespace-pre-wrap">
                 {error?.toString()}

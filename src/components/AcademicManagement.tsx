@@ -57,9 +57,7 @@ const labels: Record<TabKey, string> = {
 };
 
 const isAssignment = (item: AcademicItem): item is ProfessorAssignment => 'professorId' in item && 'subjectId' in item;
-const isSubject = (item: AcademicItem): item is Subject => 'credits' in item || ('subject' in item === false && 'code' in item && 'courseId' in item);
 const isSemester = (item: AcademicItem): item is Semester => 'number' in item;
-const isSection = (item: AcademicItem): item is Section => 'courseId' in item && 'name' in item && !('code' in item) && !('number' in item) && !('subjectId' in item);
 
 const itemName = (item: AcademicItem) => {
   if (isAssignment(item)) return `${item.professor?.name ?? 'Professor'} -> ${item.subject?.name ?? 'Subject'}`;
@@ -167,14 +165,17 @@ export const AcademicManagement: React.FC = () => {
         subjectId: item.subjectId,
         isActive: String(item.isActive),
       });
-    } else if (isSubject(item)) {
-      setForm({ courseId: item.courseId, semesterId: item.semesterId ?? '', name: item.name, code: item.code, credits: item.credits === null || item.credits === undefined ? '' : String(item.credits), isActive: String(item.isActive ?? true) });
+    } else if (activeTab === 'subjects') {
+      const subject = item as Subject;
+      setForm({ courseId: subject.courseId, semesterId: subject.semesterId ?? '', name: subject.name, code: subject.code, credits: subject.credits === null || subject.credits === undefined ? '' : String(subject.credits), isActive: String(subject.isActive ?? true) });
     } else if (isSemester(item)) {
       setForm({ courseId: item.courseId, name: item.name, number: String(item.number), isActive: String(item.isActive ?? true) });
-    } else if (isSection(item)) {
-      setForm({ courseId: item.courseId, semesterId: item.semesterId ?? '', name: item.name, code: item.code ?? '', capacity: item.capacity ? String(item.capacity) : '', isActive: String(item.isActive ?? true) });
+    } else if (activeTab === 'sections') {
+      const section = item as Section;
+      setForm({ courseId: section.courseId, semesterId: section.semesterId ?? '', name: section.name, code: section.code ?? '', capacity: section.capacity ? String(section.capacity) : '', isActive: String(section.isActive ?? true) });
     } else {
-      setForm({ name: item.name, code: item.code, description: item.description ?? '', isActive: String(item.isActive ?? true) });
+      const course = item as Course;
+      setForm({ name: course.name, code: course.code, description: course.description ?? '', isActive: String(course.isActive ?? true) });
     }
     setModalOpen(true);
   };
@@ -359,6 +360,7 @@ export const AcademicManagement: React.FC = () => {
                   ...current,
                   [field.name]: value,
                   ...(field.name === 'courseId' ? { semesterId: '', sectionId: '', subjectId: '' } : {}),
+                  ...(field.name === 'semesterId' ? { sectionId: '', subjectId: '' } : {}),
                 }))} />
               ))}
               <div className="flex justify-end gap-3 pt-2 sm:col-span-2">
@@ -398,8 +400,14 @@ const cells = (tab: TabKey, item: AcademicItem) => {
     return [course.name, course.code, linked, course.isActive === false ? 'Inactive' : 'Active'];
   }
   if (tab === 'semesters' && isSemester(item)) return [item.name, String(item.number), item.course?.name ?? item.courseId, item.isActive === false ? 'Inactive' : 'Active'];
-  if (tab === 'sections' && isSection(item)) return [item.name, item.code ?? '-', item.course?.name ?? item.courseId, item.semester?.name ?? '-', item.capacity ?? '-', item.isActive === false ? 'Inactive' : 'Active'];
-  if (tab === 'subjects' && isSubject(item)) return [item.name, item.code, item.course?.name ?? item.courseId, item.semester?.name ?? '-', item.credits ?? '-', item.isActive === false ? 'Inactive' : 'Active'];
+  if (tab === 'sections') {
+    const section = item as Section;
+    return [section.name, section.code ?? '-', section.course?.name ?? section.courseId, section.semester?.name ?? '-', section.capacity ?? '-', section.isActive === false ? 'Inactive' : 'Active'];
+  }
+  if (tab === 'subjects') {
+    const subject = item as Subject;
+    return [subject.name, subject.code, subject.course?.name ?? subject.courseId, subject.semester?.name ?? '-', subject.credits ?? '-', subject.isActive === false ? 'Inactive' : 'Active'];
+  }
   if (isAssignment(item)) return [item.professor?.name ?? item.professorId, item.course?.name ?? item.courseId, item.semester?.name ?? '-', item.section?.name ?? '-', item.subject?.name ?? item.subjectId, item.isActive ? 'Active' : 'Inactive'];
   return ['-', '-', '-'];
 };
@@ -414,8 +422,14 @@ interface FieldConfig {
 
 const formFields = (tab: TabKey, form: FormState, options: OptionGroups): FieldConfig[] => {
   const semesterOptions = options.semesters.filter((option) => !form.courseId || option.courseId === form.courseId);
-  const sectionOptions = options.sections.filter((option) => !form.courseId || option.courseId === form.courseId);
-  const subjectOptions = options.subjects.filter((option) => !form.courseId || option.courseId === form.courseId);
+  const sectionOptions = options.sections.filter((option) => (
+    (!form.courseId || option.courseId === form.courseId)
+    && (!form.semesterId || option.semesterId === form.semesterId)
+  ));
+  const subjectOptions = options.subjects.filter((option) => (
+    (!form.courseId || option.courseId === form.courseId)
+    && (!form.semesterId || option.semesterId === form.semesterId)
+  ));
   if (tab === 'classes') return [
     { name: 'name', label: 'Class Name', required: true },
     { name: 'code', label: 'Class Code', required: true },
