@@ -6,11 +6,9 @@ import { validateBody } from '../middleware/validateRequest.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import {
   changePasswordSchema,
-  forgotPasswordSchema,
   loginSchema,
   logoutSchema,
   refreshSchema,
-  resetPasswordSchema,
 } from '../validators/auth.validator.js';
 
 export const authRouter: ExpressRouter = Router();
