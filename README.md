@@ -1,158 +1,149 @@
-# AttendanceTracker
+# AttendanceTracker V1 - Attendance MVP
 
-AttendanceTracker is a full-stack attendance management system for institutions. The app includes role-based admin and professor workflows, student and professor management, attendance sessions, reports, notifications, profile/settings, and production-oriented deployment tooling.
+AttendanceTracker is a full-stack attendance MVP for institutions. Version 1 includes secure JWT login, Super Admin/Admin/Teacher role access, class and academic setup, student and teacher management, subject assignments, date/class/subject attendance, low-attendance tracking, reports, CSV/PDF exports, and institution settings.
 
-## Project Structure
+## Stack
 
-- `src/` contains the Vite + React frontend.
-- `backend/` contains the Node.js + Express + TypeScript API.
-- `backend/prisma/` contains the PostgreSQL schema, migrations, and seed scripts.
-- `tests/e2e/` contains Playwright browser tests.
+- Frontend: React, TypeScript, Vite, Tailwind CSS, Playwright tests
+- Backend: Node.js, Express, TypeScript, Prisma
+- Database: PostgreSQL
+- Auth: JWT access tokens plus refresh tokens stored in PostgreSQL
 
-## Frontend Setup
+## Local Setup
 
-Prerequisites:
-
-- Node.js 20 recommended
-- npm
-
-Install dependencies:
+1. Install dependencies:
 
 ```bash
 npm install
+cd backend
+npm install
+cd ..
 ```
 
-Create a frontend environment file:
+2. Create environment files:
 
 ```bash
-cp .env.example .env.local
+cp .env.example .env
+cp backend/.env.example backend/.env
 ```
 
-Frontend environment variables:
+3. Create the PostgreSQL database named in `backend/.env`:
 
 ```bash
-VITE_API_BASE_URL=http://localhost:5000/api
-VITE_APP_NAME=AttendanceTracker
+createdb attendancepro
 ```
 
-Frontend scripts:
-
-- `npm run dev` starts the Vite development server.
-- `npm run build` creates a production build in `dist/`.
-- `npm run preview` serves the production build locally.
-- `npm run lint` runs ESLint and TypeScript checks.
-- `npm run lint:strict` runs the gradual strict TypeScript config.
-- `npm test` runs frontend unit tests.
-- `npm run test:e2e` runs Playwright tests.
-
-## Backend Setup
-
-The backend uses Node.js, Express, TypeScript, PostgreSQL, and Prisma.
+4. Apply migrations and seed real development users/data:
 
 ```bash
 cd backend
-npm install
-cp .env.example .env
+npm run prisma:migrate
+npm run prisma:seed
+cd ..
 ```
 
-Required backend environment variables:
+5. Run both apps:
 
 ```bash
-DATABASE_URL=
-JWT_ACCESS_SECRET=
-JWT_REFRESH_SECRET=
-CLIENT_URL=http://localhost:5173
-CORS_ORIGINS=
-PORT=5000
-LOG_LEVEL=info
-SENTRY_DSN=
-ANALYTICS_WRITE_KEY=
-SMTP_HOST=
-SMTP_PORT=
-SMTP_USER=
-SMTP_PASS=
-SUPPORT_EMAIL=
+cd backend
+npm run dev
 ```
 
-Production secrets:
+In another terminal:
 
-- Use unique `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET` values with at least 32 characters.
-- Set `CLIENT_URL` to the deployed frontend URL.
-- Set `CORS_ORIGINS` to any additional allowed origins as a comma-separated list.
-- Leave SMTP/Sentry/analytics empty until providers are configured; the app uses safe no-op fallbacks.
+```bash
+npm run dev
+```
 
-Backend scripts:
+Open `http://localhost:3000`.
 
-- `npm run dev` starts the API in watch mode.
-- `npm run build` compiles TypeScript into `dist/`.
-- `npm run start` runs the compiled production server.
-- `npm run prisma:migrate` runs local development migrations.
-- `npm run prisma:deploy` applies existing migrations in production.
-- `npm run prisma:generate` generates the Prisma client.
-- `npm run prisma:seed` seeds development admin/professor accounts and refuses to run in production.
-- `npm run seed:first-admin` creates the first production admin from environment variables.
-- `npm run lint` runs ESLint and TypeScript checks.
-- `npm test` runs backend unit and integration tests.
+## Environment
+
+Frontend `.env`:
+
+```env
+VITE_API_BASE_URL=http://localhost:5001/api
+VITE_APP_NAME=AttendanceTracker
+```
+
+Backend `.env` essentials:
+
+```env
+DATABASE_URL=postgresql://sunilkumarkv@localhost:5432/attendancepro?schema=public
+PORT=5001
+CLIENT_URL=http://localhost:3000
+CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+JWT_ACCESS_SECRET=change_me_local_access_secret
+JWT_REFRESH_SECRET=change_me_local_refresh_secret
+DEV_SEED_PASSWORD=Admin@123456
+```
+
+Optional SMTP, Sentry, analytics, Twilio, and WhatsApp provider variables are listed in `backend/.env.example`.
+
+## Seeded Test Credentials
+
+The development seed creates real database records: institution, admin, teacher, class, semester, section, subject, assignment, and students.
+
+```txt
+Admin: admin@attendancetracker.local
+Teacher: professor@attendancetracker.local
+Password: Admin@123456
+```
+
+The teacher email remains `professor@attendancetracker.local` for backward compatibility with older local data.
+
+## V1 Features
+
+- Role-based login for Super Admin, Admin, and Teacher roles
+- JWT authentication and role-protected frontend/backend routes
+- Admin dashboard with students, teachers, classes, today attendance, and low-attendance metrics
+- Class, semester/year, section, subject, student, teacher, and assignment management
+- Teacher attendance marking by date, class, section, and subject
+- Duplicate attendance prevention for same class, section, subject, date, teacher, and period
+- Optional attendance lock after submit
+- Student, class, subject, date, monthly, and low-attendance reports
+- Low-attendance bands below 75%, below 65%, and critical below 50%
+- CSV and PDF report exports
+- Institution name, academic year, minimum attendance, and notification/settings management
+- Responsive sidebar UI, form validation, loading states, empty states, errors, toasts, and API error handling
+
+## Useful Scripts
+
+Frontend:
+
+```bash
+npm run dev
+npm run typecheck
+npm test -- --run
+npm run test:e2e -- --reporter=line
+npm run build
+```
+
+Backend:
+
+```bash
+cd backend
+npm run dev
+npm run prisma:generate
+npm run prisma:migrate
+npm run prisma:deploy
+npm run prisma:seed
+npm run seed:first-admin
+npm run typecheck
+npm test -- --run
+npm run build
+```
 
 Health check:
 
 ```bash
-curl http://localhost:5000/api/health
+curl http://localhost:5001/api/health
 ```
 
-## First Production Admin
+## Production Notes
 
-Set these variables in the backend environment before running the first-admin seed:
-
-```bash
-FIRST_ADMIN_INSTITUTION_NAME=
-FIRST_ADMIN_INSTITUTION_CODE=
-FIRST_ADMIN_NAME=
-FIRST_ADMIN_EMAIL=
-FIRST_ADMIN_PASSWORD=
-```
-
-Then run:
-
-```bash
-cd backend
-npm run seed:first-admin
-```
-
-## Deployment
-
-Frontend:
-
-- Vercel can use `vercel.json`.
-- Build command: `npm run build`
-- Output directory: `dist`
-- Required env: `VITE_API_BASE_URL`, `VITE_APP_NAME`
-
-Backend:
-
-- Render can use `render.yaml`.
-- Railway can use `backend/railway.json`.
-- Build command: `npm ci && npm run prisma:generate && npm run build && npm run prisma:deploy`
-- Start command: `npm run start`
-- Health check: `/api/health`
-
-## CI/CD
-
-GitHub Actions runs install, lint, gradual typecheck, tests, Prisma migration deploy for CI PostgreSQL, and builds for both frontend and backend.
-
-## Production Checklist
-
-- Configure frontend env variables in Vercel.
-- Configure backend env variables in Render/Railway.
-- Use production PostgreSQL with backups enabled.
-- Run `npm run prisma:deploy` during backend deploy.
-- Run `npm run seed:first-admin` once, then remove first-admin password variables.
-- Confirm `/api/health` passes.
-- Confirm production CORS only allows the deployed frontend.
-- Confirm SMTP is configured before enabling email delivery.
-- Confirm Sentry/analytics providers are installed before setting DSNs/write keys.
-- Confirm no development seed runs in production.
-- Confirm no hardcoded credentials or webhook URLs are present in production code.
-- Run lint, tests, frontend build, and backend build before release.
-
-More deployment and safety notes live in `docs/production-readiness.md`.
+- Use strong unique JWT secrets.
+- Set `CLIENT_URL` and `CORS_ORIGINS` to deployed frontend origins.
+- Run `npm run prisma:deploy` during backend deployment.
+- Run `npm run seed:first-admin` once for production, then remove first-admin password variables.
+- Configure SMTP/SMS/WhatsApp providers only when you are ready to send real notifications.

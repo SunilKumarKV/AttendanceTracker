@@ -10,5 +10,6 @@ export const appSettingsSchema = z.object({
   academicYear: z.string().trim().optional(),
   principalName: z.string().trim().optional(),
   theme: z.enum(['light', 'dark']).optional(),
+  attendanceLockAfterSubmit: z.boolean().optional(),
   timezone: z.string().trim().optional(),
 });

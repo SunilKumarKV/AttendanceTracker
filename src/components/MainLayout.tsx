@@ -43,7 +43,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
     { label: 'Academics', path: '/academics', icon: GraduationCap },
     { label: 'Reports', path: '/reports', icon: BarChart3 },
     { label: 'Notifications', path: '/notifications', icon: Bell },
-    { label: 'Manage Professors', path: '/manage-professors', icon: UserCog },
+    { label: 'Manage Teachers', path: '/manage-professors', icon: UserCog },
     { label: 'Settings', path: '/settings', icon: Settings },
   ];
 
@@ -57,8 +57,8 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
     { label: 'Settings', path: '/professor-settings', icon: Settings },
   ];
 
-  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
-  const roleLabel = user?.role ? user.role.replace('_', ' ') : 'Guest';
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'HOD';
+  const roleLabel = user?.role === 'PROFESSOR' ? 'TEACHER' : user?.role ? user.role.replace('_', ' ') : 'Guest';
   const menuItems = isAdmin ? adminItems : professorItems;
 
   const getPageTitle = () => {

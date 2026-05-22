@@ -38,6 +38,7 @@ const fallbackAppSettings: AppSettingsData = {
   academicYear: '2025-26',
   principalName: '',
   theme: 'light',
+  attendanceLockAfterSubmit: false,
   timezone: 'Asia/Kolkata',
   minimumAttendancePct: 75,
   notificationEnabled: true,
@@ -154,6 +155,20 @@ export const Settings: React.FC = () => {
               />
             </div>
           </div>
+        </section>
+
+        <section className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm">
+          <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+            <FileText size={20} className="text-blue-600" />
+            Attendance Rules
+          </h3>
+          <Toggle
+            icon={<FileText size={20} />}
+            title="Lock Attendance After Submit"
+            description="When enabled, teacher submissions are locked immediately and cannot be edited."
+            enabled={appSettings.attendanceLockAfterSubmit}
+            onClick={() => setAppSettings({ ...appSettings, attendanceLockAfterSubmit: !appSettings.attendanceLockAfterSubmit })}
+          />
         </section>
 
         <section className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm">

@@ -3,5 +3,5 @@ import { authenticate, requireRole } from './auth.js';
 
 export const professorOnly = [
   authenticate,
-  requireRole(Role.PROFESSOR),
+  requireRole(Role.TEACHER, Role.PROFESSOR),
 ];

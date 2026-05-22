@@ -17,6 +17,7 @@ const defaultSettings = {
   academicYear: '2025-26',
   principalName: '',
   theme: 'light',
+  attendanceLockAfterSubmit: false,
 };
 
 export const getSettings = async (context: SettingsContext) => {
@@ -43,6 +44,7 @@ export const getSettings = async (context: SettingsContext) => {
     academicYear: String(values.academicYear ?? defaultSettings.academicYear),
     principalName: String(values.principalName ?? ''),
     theme: values.theme === 'dark' ? 'dark' : 'light',
+    attendanceLockAfterSubmit: values.attendanceLockAfterSubmit === true,
     timezone: appSettings.timezone,
     minimumAttendancePct: appSettings.minimumAttendancePct,
     notificationEnabled: appSettings.notificationEnabled,
@@ -63,6 +65,7 @@ export const updateSettings = async (context: SettingsContext, rawData: unknown)
     ...(data.academicYear !== undefined ? { academicYear: data.academicYear } : {}),
     ...(data.principalName !== undefined ? { principalName: data.principalName } : {}),
     ...(data.theme !== undefined ? { theme: data.theme } : {}),
+    ...(data.attendanceLockAfterSubmit !== undefined ? { attendanceLockAfterSubmit: data.attendanceLockAfterSubmit } : {}),
   };
 
   await Promise.all([

@@ -2,12 +2,12 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CalendarDays, Eye, Lock, Search } from 'lucide-react';
 import { toast } from 'sonner';
-import { AttendanceSession, getAttendanceSessions, getProfessorAssignments, lockAttendanceSession, ProfessorAssignment } from '../api/professor';
+import { AttendanceSession, getAttendanceSessions, getTeacherAssignments, lockAttendanceSession, TeacherAssignment } from '../api/teacher';
 import { ConfirmDialog, EmptyState, ErrorState, Loader, Pagination } from './common';
 
 export const AttendanceHistory: React.FC = () => {
   const navigate = useNavigate();
-  const [assignments, setAssignments] = useState<ProfessorAssignment[]>([]);
+  const [assignments, setAssignments] = useState<TeacherAssignment[]>([]);
   const [sessions, setSessions] = useState<AttendanceSession[]>([]);
   const [filters, setFilters] = useState({ classId: '', sectionId: '', subjectId: '', fromDate: '', toDate: '', locked: '' });
   const [page, setPage] = useState(1);
@@ -22,7 +22,7 @@ export const AttendanceHistory: React.FC = () => {
     setError('');
     try {
       const [assignmentResponse, sessionResponse] = await Promise.all([
-        getProfessorAssignments(),
+        getTeacherAssignments(),
         getAttendanceSessions({ ...filters, locked: filters.locked || undefined, page: nextPage, pageSize }),
       ]);
       setAssignments(assignmentResponse.data);
@@ -70,7 +70,7 @@ export const AttendanceHistory: React.FC = () => {
         <div className="flex items-start gap-4">
           <div className="rounded-2xl bg-blue-50 p-3 text-blue-600 dark:bg-blue-500/10"><CalendarDays size={24} /></div>
           <div>
-            <p className="text-sm font-bold uppercase tracking-widest text-blue-600">Professor Panel</p>
+            <p className="text-sm font-bold uppercase tracking-widest text-blue-600">Teacher Panel</p>
             <h2 className="text-3xl font-black text-slate-900 dark:text-white">Attendance History</h2>
             <p className="mt-1 text-slate-600 dark:text-slate-300">Review, edit unlocked sessions, or lock finalized attendance.</p>
           </div>
@@ -145,7 +145,7 @@ export const AttendanceHistory: React.FC = () => {
   );
 };
 
-const unique = (items: ProfessorAssignment[], key: keyof ProfessorAssignment) => items.filter((item, index, list) => {
+const unique = (items: TeacherAssignment[], key: keyof TeacherAssignment) => items.filter((item, index, list) => {
   const value = item[key] ?? '';
   return value !== '' && list.findIndex((candidate) => (candidate[key] ?? '') === value) === index;
 });

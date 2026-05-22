@@ -6,11 +6,9 @@ import { validateBody } from '../middleware/validateRequest.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import {
   changePasswordSchema,
-  forgotPasswordSchema,
   loginSchema,
   logoutSchema,
   refreshSchema,
-  resetPasswordSchema,
 } from '../validators/auth.validator.js';
 
 export const authRouter = Router();
@@ -21,5 +19,3 @@ authRouter.post('/login', validateBody(loginSchema), asyncHandler(authController
 authRouter.post('/refresh', validateBody(refreshSchema), asyncHandler(authController.refresh));
 authRouter.post('/logout', authenticate, validateBody(logoutSchema), asyncHandler(authController.logout));
 authRouter.post('/change-password', authenticate, validateBody(changePasswordSchema), asyncHandler(authController.changePassword));
-authRouter.post('/forgot-password', validateBody(forgotPasswordSchema), authController.forgotPassword);
-authRouter.post('/reset-password', validateBody(resetPasswordSchema), authController.resetPassword);

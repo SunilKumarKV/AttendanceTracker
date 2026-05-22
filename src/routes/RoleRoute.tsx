@@ -10,7 +10,7 @@ interface RoleRouteProps {
 }
 
 const getFallbackRoute = (role: Role | null) => (
-  role === 'ADMIN' || role === 'SUPER_ADMIN' ? '/dashboard' : '/professor-dashboard'
+  role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'HOD' ? '/dashboard' : '/professor-dashboard'
 );
 
 export const RoleRoute: React.FC<RoleRouteProps> = ({ allowedRoles, children }) => {

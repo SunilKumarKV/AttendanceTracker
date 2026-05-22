@@ -25,6 +25,8 @@ const professorSelect = {
   _count: { select: { professorAssignments: true } },
 } as const;
 
+const teacherRoles = [Role.TEACHER, Role.PROFESSOR];
+
 const toProfessorDto = (user: Prisma.UserGetPayload<{ select: typeof professorSelect }>) => ({
   id: user.id,
   name: user.name,
@@ -86,7 +88,7 @@ export const getDashboard = async (context: AdminContext) => {
       prisma.semester.count({ where: { institutionId, isActive: true } }),
       prisma.section.count({ where: { institutionId, isActive: true } }),
       prisma.subject.count({ where: { institutionId, isActive: true } }),
-      prisma.user.count({ where: { institutionId, role: Role.PROFESSOR, isActive: true } }),
+      prisma.user.count({ where: { institutionId, role: { in: teacherRoles }, isActive: true } }),
       prisma.student.count({ where: { institutionId, isActive: true } }),
       prisma.professorSubjectAssignment.count({ where: { course: { institutionId }, isActive: true } }),
     ]),
@@ -141,7 +143,7 @@ export const listProfessors = async (context: AdminContext, query: unknown) => {
   const { page, pageSize, search, skip, take } = getPagination(query);
   const where: Prisma.UserWhereInput = {
     institutionId,
-    role: Role.PROFESSOR,
+    role: { in: teacherRoles },
     ...(search ? {
       OR: [
         { name: { contains: search, mode: 'insensitive' } },
@@ -166,7 +168,7 @@ export const createProfessor = async (context: AdminContext, data: any) => {
       name: data.name,
       email: data.email,
       passwordHash,
-      role: Role.PROFESSOR,
+      role: Role.TEACHER,
       isActive: data.isActive ?? true,
       professorProfile: {
         create: {
@@ -423,7 +425,7 @@ const validateModelRelations = async (institutionId: string, modelName: ModelNam
   }
   if (modelName === 'professorSubjectAssignment') {
     const [professor, semester, section, subject] = await Promise.all([
-      prisma.user.findFirst({ where: { id: data.professorId, institutionId, role: Role.PROFESSOR, isActive: true } }),
+      prisma.user.findFirst({ where: { id: data.professorId, institutionId, role: { in: teacherRoles }, isActive: true } }),
       prisma.semester.findFirst({ where: { id: data.semesterId, courseId: data.courseId, institutionId } }),
       prisma.section.findFirst({ where: { id: data.sectionId, courseId: data.courseId, semesterId: data.semesterId, institutionId } }),
       prisma.subject.findFirst({ where: { id: data.subjectId, courseId: data.courseId, semesterId: data.semesterId, institutionId } }),

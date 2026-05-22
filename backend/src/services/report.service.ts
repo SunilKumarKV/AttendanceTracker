@@ -82,6 +82,13 @@ const percentage = (attended: number, total: number) => (
 
 const statusFromPercentage = (value: number, threshold = 75) => (value < threshold ? 'Shortage' : 'Regular');
 
+const lowAttendanceSeverity = (value: number) => {
+  if (value < 50) return 'CRITICAL_BELOW_50';
+  if (value < 65) return 'BELOW_65';
+  if (value < 75) return 'BELOW_75';
+  return 'OK';
+};
+
 const getAttendanceCalculationSettings = async (institutionId: string): Promise<AttendanceCalculationSettings> => {
   const settings = await prisma.appSettings.findUnique({ where: { institutionId }, select: { settings: true } });
   const values = settings?.settings;
@@ -139,6 +146,7 @@ const summarizeStudent = (student: {
     attended,
     attendancePercentage,
     status: statusFromPercentage(attendancePercentage, threshold),
+    lowAttendanceSeverity: lowAttendanceSeverity(attendancePercentage),
   };
 };
 
@@ -199,6 +207,11 @@ const summarizeOverview = (students: ReturnType<typeof summarizeStudent>[]) => {
     overallExcused,
     overallAbsent,
     lowAttendanceCount: students.filter((student) => student.status === 'Shortage').length,
+    lowAttendanceBands: {
+      below75: students.filter((student) => student.totalClasses > 0 && student.attendancePercentage < 75).length,
+      below65: students.filter((student) => student.totalClasses > 0 && student.attendancePercentage < 65).length,
+      criticalBelow50: students.filter((student) => student.totalClasses > 0 && student.attendancePercentage < 50).length,
+    },
   };
 };
 
@@ -275,6 +288,10 @@ export const getSubjectReport = async (context: ReportContext, subjectId: string
   getOverview(context, { ...(rawQuery as object), subjectId })
 );
 
+export const getDateReport = async (context: ReportContext, date: string, rawQuery: unknown) => (
+  getOverview(context, { ...(rawQuery as object), fromDate: date, toDate: date })
+);
+
 export const getLowAttendance = async (context: ReportContext, rawQuery: unknown) => {
   const institutionId = requireInstitutionId(context.institutionId);
   const query = parseQuery(rawQuery);
@@ -282,6 +299,11 @@ export const getLowAttendance = async (context: ReportContext, rawQuery: unknown
   const students = await getStudentSummaries(institutionId, query);
   return {
     threshold,
+    bands: {
+      below75: students.filter((student) => student.totalClasses > 0 && student.attendancePercentage < 75).length,
+      below65: students.filter((student) => student.totalClasses > 0 && student.attendancePercentage < 65).length,
+      criticalBelow50: students.filter((student) => student.totalClasses > 0 && student.attendancePercentage < 50).length,
+    },
     students: students.filter((student) => student.totalClasses > 0 && student.attendancePercentage < threshold),
   };
 };

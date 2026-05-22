@@ -226,9 +226,17 @@ const sendAttendanceNotifications = async (
   await Promise.allSettled(tasks);
 };
 
+const shouldLockAttendanceAfterSubmit = async (institutionId: string) => {
+  const appSettings = await prisma.appSettings.findUnique({ where: { institutionId }, select: { settings: true } });
+  const settings = appSettings?.settings;
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return false;
+  return (settings as Record<string, unknown>).attendanceLockAfterSubmit === true;
+};
+
 export const createAttendanceSession = async (context: ProfessorContext, data: any) => {
   const { userId, institutionId } = requireProfessor(context);
   const sessionDate = startOfDay(data.sessionDate);
+  const lockAfterSubmit = await shouldLockAttendanceAfterSubmit(institutionId);
   await assertAssignment(context, data.courseId, data.subjectId, data.semesterId, data.sectionId);
   await assertRecordsBelongToClass(data.courseId, data.sectionId, data.records);
 
@@ -258,6 +266,8 @@ export const createAttendanceSession = async (context: ProfessorContext, data: a
       period: data.period,
       topic: data.topic,
       notes: data.notes,
+      isLocked: lockAfterSubmit,
+      lockedAt: lockAfterSubmit ? new Date() : null,
       records: {
         create: data.records.map((record: any) => ({
           studentId: record.studentId,
