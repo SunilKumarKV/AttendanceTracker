@@ -146,3 +146,28 @@ export const lockAttendanceSession = (id: string) => (
     method: 'POST',
   })
 );
+
+export interface CorrectionRequestPayload {
+  sessionId: string;
+  attendanceRecordId?: string | null;
+  studentId?: string | null;
+  requestedStatus?: AttendanceStatus | null;
+  reason: string;
+}
+
+export interface LeaveRequestPayload {
+  studentId: string;
+  fromDate: string;
+  toDate: string;
+  reason: string;
+}
+
+export const createCorrectionRequest = (data: CorrectionRequestPayload) => (
+  apiClient<ApiResponse<unknown>>('/attendance/correction-requests', { method: 'POST', body: JSON.stringify(data) })
+);
+
+export const getMyCorrectionRequests = () => apiClient<ApiResponse<unknown[]>>('/attendance/correction-requests');
+export const createLeaveRequest = (data: LeaveRequestPayload) => (
+  apiClient<ApiResponse<unknown>>('/attendance/leave-requests', { method: 'POST', body: JSON.stringify(data) })
+);
+export const getMyLeaveRequests = () => apiClient<ApiResponse<unknown[]>>('/attendance/leave-requests');

@@ -90,6 +90,9 @@ export interface DashboardData {
   chartData: { name: string; percentage: number }[];
   atRiskStudents: { name: string; rollNo: string; phone: string; attendancePercentage: number }[];
   recentActivity: { date: string; subject: string; professor: string; present: number; absent: number }[];
+  pendingCorrections?: number;
+  pendingLeaveRequests?: number;
+  todayStatus?: { workingDay: boolean; holiday?: Holiday | null };
   setupChecklist?: {
     institutionProfileCompleted: boolean;
     classes: number;
@@ -155,6 +158,23 @@ export const createStudent = (data: Student) => (
   })
 );
 
+
+export interface StudentImportResult {
+  totalRows: number;
+  importedCount: number;
+  failedCount: number;
+  errors: Array<{ row: number; errors: string[] }>;
+}
+
+export const importStudentsFile = (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return apiClient<ApiResponse<StudentImportResult>>('/students/import', {
+    method: 'POST',
+    body: formData,
+  });
+};
+
 export const updateStudent = (id: string, data: Partial<Student>) => (
   apiClient<ApiResponse<Student>>(`/students/${id}`, {
     method: 'PATCH',
@@ -187,3 +207,90 @@ export const updateAcademicResource = <T>(resource: AcademicResource, id: string
 export const deleteAcademicResource = (resource: AcademicResource, id: string) => (
   apiClient<void>(`/${resource}/${id}`, { method: 'DELETE' })
 );
+
+export interface AuditLogEntry {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId?: string | null;
+  createdAt: string;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  actor?: { id: string; name: string; email: string; role: string } | null;
+  metadata?: unknown;
+}
+
+export interface LoginHistoryEntry {
+  id: string;
+  email: string;
+  success: boolean;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  createdAt: string;
+  user?: { id: string; name: string; email: string; role: string } | null;
+}
+
+export const getAuditLogs = (limit = 50) => (
+  apiClient<ApiResponse<AuditLogEntry[]>>(`/admin/audit-logs${queryString({ limit })}`)
+);
+
+export const getActivityTimeline = (limit = 20) => (
+  apiClient<ApiResponse<AuditLogEntry[]>>(`/admin/activity-timeline${queryString({ limit })}`)
+);
+
+export const getLoginHistory = (limit = 50) => (
+  apiClient<ApiResponse<LoginHistoryEntry[]>>(`/admin/login-history${queryString({ limit })}`)
+);
+
+export interface AttendancePolicy {
+  id: string;
+  lockAfterHours: number;
+  workingDays: number[];
+  adminOverrideEnabled: boolean;
+}
+
+export interface Holiday {
+  id: string;
+  academicYear: string;
+  date: string;
+  name: string;
+  description?: string | null;
+}
+
+export interface AttendanceReviewRequest {
+  id: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  reason: string;
+  adminNote?: string | null;
+  createdAt: string;
+  requestedStatus?: string | null;
+  currentStatus?: string | null;
+  student?: { id: string; name: string; rollNumber: string } | null;
+  requestedBy?: { name: string; email: string; role: string } | null;
+  session?: { id: string; sessionDate: string; period: string; course?: Course; subject?: Subject; section?: Section | null } | null;
+}
+
+export interface LeaveRequest {
+  id: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  fromDate: string;
+  toDate: string;
+  reason: string;
+  adminNote?: string | null;
+  createdAt: string;
+  student?: Student & { course?: Course; section?: Section };
+  requestedBy?: { name: string; email: string; role: string } | null;
+}
+
+export const getAttendancePolicy = () => apiClient<ApiResponse<AttendancePolicy>>('/attendance-policy');
+export const updateAttendancePolicy = (data: Partial<AttendancePolicy>) => apiClient<ApiResponse<AttendancePolicy>>('/attendance-policy', { method: 'PATCH', body: JSON.stringify(data) });
+export const getHolidays = (academicYear?: string) => apiClient<ApiResponse<Holiday[]>>(`/holidays${queryString({ academicYear })}`);
+export const createHoliday = (data: Partial<Holiday>) => apiClient<ApiResponse<Holiday>>('/holidays', { method: 'POST', body: JSON.stringify(data) });
+export const updateHoliday = (id: string, data: Partial<Holiday>) => apiClient<ApiResponse<Holiday>>(`/holidays/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+export const deleteHoliday = (id: string) => apiClient<void>(`/holidays/${id}`, { method: 'DELETE' });
+export const getCorrectionRequests = (status?: string) => apiClient<ApiResponse<AttendanceReviewRequest[]>>(`/correction-requests${queryString({ status })}`);
+export const approveCorrectionRequest = (id: string, adminNote?: string) => apiClient<ApiResponse<AttendanceReviewRequest>>(`/correction-requests/${id}/approve`, { method: 'POST', body: JSON.stringify({ adminNote }) });
+export const rejectCorrectionRequest = (id: string, adminNote?: string) => apiClient<ApiResponse<AttendanceReviewRequest>>(`/correction-requests/${id}/reject`, { method: 'POST', body: JSON.stringify({ adminNote }) });
+export const getLeaveRequests = (status?: string) => apiClient<ApiResponse<LeaveRequest[]>>(`/leave-requests${queryString({ status })}`);
+export const approveLeaveRequest = (id: string, adminNote?: string) => apiClient<ApiResponse<LeaveRequest>>(`/leave-requests/${id}/approve`, { method: 'POST', body: JSON.stringify({ adminNote }) });
+export const rejectLeaveRequest = (id: string, adminNote?: string) => apiClient<ApiResponse<LeaveRequest>>(`/leave-requests/${id}/reject`, { method: 'POST', body: JSON.stringify({ adminNote }) });

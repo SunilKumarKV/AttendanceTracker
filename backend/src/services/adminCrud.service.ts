@@ -7,6 +7,7 @@ import { requireInstitutionId, ensureDefaultAcademicScope, ensureSubject } from 
 import { writeAuditLog } from './audit.service.js';
 import { AppError } from '../utils/AppError.js';
 import { getPagination, toPaginatedResponse } from '../utils/pagination.js';
+import { dashboardCounts } from './attendanceControl.service.js';
 
 interface AdminContext {
   userId?: string;
@@ -40,12 +41,16 @@ const toProfessorDto = (user: Prisma.UserGetPayload<{ select: typeof professorSe
   assignedCount: user._count.professorAssignments,
 });
 
-const toStudentDto = (student: Prisma.StudentGetPayload<{ include: { course: true; section: { include: { semester: true } } } }>) => ({
+const toStudentDto = (
+  student: Prisma.StudentGetPayload<{ include: { course: true; section: { include: { semester: true } } } }>,
+) => ({
   id: student.id,
   name: student.name,
   rollNo: student.rollNumber,
   email: student.email ?? '',
   phone: student.phone ?? '',
+  parentName: student.parentName ?? '',
+  parentEmail: student.parentEmail ?? '',
   parentPhone: student.parentPhone ?? '',
   subject: student.course.name,
   attendancePercentage: 0,
@@ -63,41 +68,45 @@ export const getDashboard = async (context: AdminContext) => {
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const [totalStudents, presentToday, absentToday, students, recentSessions, setupCounts, institution] = await Promise.all([
-    prisma.student.count({ where: { institutionId, isActive: true } }),
-    prisma.attendanceRecord.count({
-      where: { status: 'PRESENT', session: { institutionId, sessionDate: { gte: today, lt: tomorrow } } },
-    }),
-    prisma.attendanceRecord.count({
-      where: { status: 'ABSENT', session: { institutionId, sessionDate: { gte: today, lt: tomorrow } } },
-    }),
-    prisma.student.findMany({
-      where: { institutionId, isActive: true },
-      include: { attendanceRecords: true },
-      orderBy: { createdAt: 'desc' },
-      take: 10,
-    }),
-    prisma.attendanceSession.findMany({
-      where: { institutionId },
-      include: { subject: true, professor: true, records: true },
-      orderBy: { sessionDate: 'desc' },
-      take: 5,
-    }),
-    Promise.all([
-      prisma.course.count({ where: { institutionId, isActive: true } }),
-      prisma.semester.count({ where: { institutionId, isActive: true } }),
-      prisma.section.count({ where: { institutionId, isActive: true } }),
-      prisma.subject.count({ where: { institutionId, isActive: true } }),
-      prisma.user.count({ where: { institutionId, role: { in: teacherRoles }, isActive: true } }),
+  const [totalStudents, presentToday, absentToday, students, recentSessions, setupCounts, institution, v12Counts] =
+    await Promise.all([
       prisma.student.count({ where: { institutionId, isActive: true } }),
-      prisma.professorSubjectAssignment.count({ where: { course: { institutionId }, isActive: true } }),
-    ]),
-    prisma.institution.findUnique({ where: { id: institutionId } }),
-  ]);
+      prisma.attendanceRecord.count({
+        where: { status: 'PRESENT', session: { institutionId, sessionDate: { gte: today, lt: tomorrow } } },
+      }),
+      prisma.attendanceRecord.count({
+        where: { status: 'ABSENT', session: { institutionId, sessionDate: { gte: today, lt: tomorrow } } },
+      }),
+      prisma.student.findMany({
+        where: { institutionId, isActive: true },
+        include: { attendanceRecords: true },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      }),
+      prisma.attendanceSession.findMany({
+        where: { institutionId },
+        include: { subject: true, professor: true, records: true },
+        orderBy: { sessionDate: 'desc' },
+        take: 5,
+      }),
+      Promise.all([
+        prisma.course.count({ where: { institutionId, isActive: true } }),
+        prisma.semester.count({ where: { institutionId, isActive: true } }),
+        prisma.section.count({ where: { institutionId, isActive: true } }),
+        prisma.subject.count({ where: { institutionId, isActive: true } }),
+        prisma.user.count({ where: { institutionId, role: { in: teacherRoles }, isActive: true } }),
+        prisma.student.count({ where: { institutionId, isActive: true } }),
+        prisma.professorSubjectAssignment.count({ where: { course: { institutionId }, isActive: true } }),
+      ]),
+      prisma.institution.findUnique({ where: { id: institutionId } }),
+      dashboardCounts(institutionId),
+    ]);
 
   const studentChartData = students.map((student) => {
     const total = student.attendanceRecords.length;
-    const present = student.attendanceRecords.filter((record) => record.status === 'PRESENT').length;
+    const present = student.attendanceRecords.filter(
+      (record: { status: string }) => record.status === 'PRESENT',
+    ).length;
     const percentage = total === 0 ? 0 : Number(((present / total) * 100).toFixed(1));
     return {
       id: student.id,
@@ -122,9 +131,12 @@ export const getDashboard = async (context: AdminContext) => {
       date: session.sessionDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
       subject: session.subject.name,
       professor: session.professor.name,
-      present: session.records.filter((record) => record.status === 'PRESENT').length,
-      absent: session.records.filter((record) => record.status === 'ABSENT').length,
+      present: session.records.filter((record: { status: string }) => record.status === 'PRESENT').length,
+      absent: session.records.filter((record: { status: string }) => record.status === 'ABSENT').length,
     })),
+    pendingCorrections: v12Counts.pendingCorrections,
+    pendingLeaveRequests: v12Counts.pendingLeaveRequests,
+    todayStatus: v12Counts.todayStatus,
     setupChecklist: {
       institutionProfileCompleted: Boolean(institution?.name),
       classes: setupCounts[0],
@@ -144,13 +156,15 @@ export const listProfessors = async (context: AdminContext, query: unknown) => {
   const where: Prisma.UserWhereInput = {
     institutionId,
     role: { in: teacherRoles },
-    ...(search ? {
-      OR: [
-        { name: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-        { professorProfile: { employeeCode: { contains: search, mode: 'insensitive' } } },
-      ],
-    } : {}),
+    ...(search
+      ? {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' } },
+            { email: { contains: search, mode: 'insensitive' } },
+            { professorProfile: { employeeCode: { contains: search, mode: 'insensitive' } } },
+          ],
+        }
+      : {}),
   };
   const [items, total] = await Promise.all([
     prisma.user.findMany({ where, select: professorSelect, skip, take, orderBy: { createdAt: 'desc' } }),
@@ -182,7 +196,14 @@ export const createProfessor = async (context: AdminContext, data: any) => {
     },
     select: professorSelect,
   });
-  await writeAuditLog({ actorId: context.userId, institutionId, action: 'CREATE', entityType: 'Professor', entityId: professor.id, metadata: data });
+  await writeAuditLog({
+    actorId: context.userId,
+    institutionId,
+    action: 'CREATE',
+    entityType: 'Professor',
+    entityId: professor.id,
+    metadata: data,
+  });
   return toProfessorDto(professor);
 };
 
@@ -214,14 +235,27 @@ export const updateProfessor = async (context: AdminContext, id: string, data: a
     },
     select: professorSelect,
   });
-  await writeAuditLog({ actorId: context.userId, institutionId, action: 'UPDATE', entityType: 'Professor', entityId: id, metadata: data });
+  await writeAuditLog({
+    actorId: context.userId,
+    institutionId,
+    action: 'UPDATE',
+    entityType: 'Professor',
+    entityId: id,
+    metadata: data,
+  });
   return toProfessorDto(professor);
 };
 
 export const deleteProfessor = async (context: AdminContext, id: string) => {
   const institutionId = requireInstitutionId(context.institutionId);
   await prisma.user.update({ where: { id }, data: { isActive: false } });
-  await writeAuditLog({ actorId: context.userId, institutionId, action: 'DELETE', entityType: 'Professor', entityId: id });
+  await writeAuditLog({
+    actorId: context.userId,
+    institutionId,
+    action: 'DELETE',
+    entityType: 'Professor',
+    entityId: id,
+  });
 };
 
 export const listStudents = async (context: AdminContext, query: unknown) => {
@@ -230,15 +264,23 @@ export const listStudents = async (context: AdminContext, query: unknown) => {
   const where: Prisma.StudentWhereInput = {
     institutionId,
     isActive: true,
-    ...(search ? {
-      OR: [
-        { name: { contains: search, mode: 'insensitive' } },
-        { rollNumber: { contains: search, mode: 'insensitive' } },
-      ],
-    } : {}),
+    ...(search
+      ? {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' } },
+            { rollNumber: { contains: search, mode: 'insensitive' } },
+          ],
+        }
+      : {}),
   };
   const [items, total] = await Promise.all([
-    prisma.student.findMany({ where, include: { course: true, section: { include: { semester: true } } }, skip, take, orderBy: { createdAt: 'desc' } }),
+    prisma.student.findMany({
+      where,
+      include: { course: true, section: { include: { semester: true } } },
+      skip,
+      take,
+      orderBy: { createdAt: 'desc' },
+    }),
     prisma.student.count({ where }),
   ]);
   return toPaginatedResponse(items.map(toStudentDto), total, page, pageSize);
@@ -248,12 +290,26 @@ export const createStudent = async (context: AdminContext, data: any) => {
   const institutionId = requireInstitutionId(context.institutionId);
   const scope = await ensureDefaultAcademicScope(institutionId);
   if (data.sectionId && data.courseId) {
-    const section = await prisma.section.findFirst({ where: { id: data.sectionId, courseId: data.courseId, ...(data.semesterId ? { semesterId: data.semesterId } : {}) } });
-    if (!section) throw new AppError('Section does not belong to the selected class and semester', StatusCodes.BAD_REQUEST);
+    const section = await prisma.section.findFirst({
+      where: {
+        id: data.sectionId,
+        courseId: data.courseId,
+        ...(data.semesterId ? { semesterId: data.semesterId } : {}),
+      },
+    });
+    if (!section)
+      throw new AppError('Section does not belong to the selected class and semester', StatusCodes.BAD_REQUEST);
   }
   if (data.subject) await ensureSubject(institutionId, scope.course.id, scope.semester.id, data.subject);
   const exists = await prisma.student.findUnique({
-    where: { institutionId_courseId_sectionId_rollNumber: { institutionId, courseId: data.courseId ?? scope.course.id, sectionId: data.sectionId ?? scope.section.id, rollNumber: data.rollNo } },
+    where: {
+      institutionId_courseId_sectionId_rollNumber: {
+        institutionId,
+        courseId: data.courseId ?? scope.course.id,
+        sectionId: data.sectionId ?? scope.section.id,
+        rollNumber: data.rollNo,
+      },
+    },
   });
   if (exists) throw new AppError('Roll number already exists for this class and section', StatusCodes.CONFLICT);
   const student = await prisma.student.create({
@@ -265,20 +321,36 @@ export const createStudent = async (context: AdminContext, data: any) => {
       rollNumber: data.rollNo,
       email: data.email || null,
       phone: data.phone,
+      parentName: data.parentName,
+      parentEmail: data.parentEmail || null,
       parentPhone: data.parentPhone,
       isActive: data.isActive ?? true,
     },
     include: { course: true, section: { include: { semester: true } } },
   });
-  await writeAuditLog({ actorId: context.userId, institutionId, action: 'CREATE', entityType: 'Student', entityId: student.id, metadata: data });
+  await writeAuditLog({
+    actorId: context.userId,
+    institutionId,
+    action: 'CREATE',
+    entityType: 'Student',
+    entityId: student.id,
+    metadata: data,
+  });
   return toStudentDto(student);
 };
 
 export const updateStudent = async (context: AdminContext, id: string, data: any) => {
   const institutionId = requireInstitutionId(context.institutionId);
   if (data.sectionId && data.courseId) {
-    const section = await prisma.section.findFirst({ where: { id: data.sectionId, courseId: data.courseId, ...(data.semesterId ? { semesterId: data.semesterId } : {}) } });
-    if (!section) throw new AppError('Section does not belong to the selected class and semester', StatusCodes.BAD_REQUEST);
+    const section = await prisma.section.findFirst({
+      where: {
+        id: data.sectionId,
+        courseId: data.courseId,
+        ...(data.semesterId ? { semesterId: data.semesterId } : {}),
+      },
+    });
+    if (!section)
+      throw new AppError('Section does not belong to the selected class and semester', StatusCodes.BAD_REQUEST);
   }
   const student = await prisma.student.update({
     where: { id },
@@ -286,6 +358,8 @@ export const updateStudent = async (context: AdminContext, id: string, data: any
       name: data.name,
       email: data.email || undefined,
       phone: data.phone,
+      parentName: data.parentName,
+      parentEmail: data.parentEmail || undefined,
       parentPhone: data.parentPhone,
       courseId: data.courseId,
       sectionId: data.sectionId,
@@ -293,17 +367,43 @@ export const updateStudent = async (context: AdminContext, id: string, data: any
     },
     include: { course: true, section: { include: { semester: true } } },
   });
-  await writeAuditLog({ actorId: context.userId, institutionId, action: 'UPDATE', entityType: 'Student', entityId: id, metadata: data });
+  await writeAuditLog({
+    actorId: context.userId,
+    institutionId,
+    action: 'UPDATE',
+    entityType: 'Student',
+    entityId: id,
+    metadata: data,
+  });
   return toStudentDto(student);
 };
 
 export const deleteStudent = async (context: AdminContext, id: string) => {
   const institutionId = requireInstitutionId(context.institutionId);
   await prisma.student.update({ where: { id }, data: { isActive: false } });
-  await writeAuditLog({ actorId: context.userId, institutionId, action: 'DELETE', entityType: 'Student', entityId: id });
+  await writeAuditLog({
+    actorId: context.userId,
+    institutionId,
+    action: 'DELETE',
+    entityType: 'Student',
+    entityId: id,
+  });
 };
 
 type ModelName = 'course' | 'semester' | 'section' | 'subject' | 'professorSubjectAssignment';
+
+const assignmentInclude = {
+  professor: { select: { id: true, name: true, email: true } },
+  course: true,
+  subject: true,
+  semester: true,
+  section: true,
+} satisfies Prisma.ProfessorSubjectAssignmentInclude;
+
+const hydrateAssignment = (id: string) => prisma.professorSubjectAssignment.findUnique({
+  where: { id },
+  include: assignmentInclude,
+});
 
 const modelMap = {
   course: prisma.course,
@@ -322,11 +422,16 @@ export const listModel = async (context: AdminContext, modelName: ModelName, que
     if (modelName === 'professorSubjectAssignment') {
       return {
         course: { institutionId },
-        ...(search ? { OR: [
-          { professor: { name: { contains: search, mode: 'insensitive' } } },
-          { subject: { name: { contains: search, mode: 'insensitive' } } },
-          { course: { name: { contains: search, mode: 'insensitive' } } },
-        ] } : {}),
+        isActive: true,
+        ...(search
+          ? {
+              OR: [
+                { professor: { name: { contains: search, mode: 'insensitive' } } },
+                { subject: { name: { contains: search, mode: 'insensitive' } } },
+                { course: { name: { contains: search, mode: 'insensitive' } } },
+              ],
+            }
+          : {}),
         ...(params.professorId ? { professorId: params.professorId } : {}),
         ...(params.courseId ? { courseId: params.courseId } : {}),
         ...(params.subjectId ? { subjectId: params.subjectId } : {}),
@@ -339,7 +444,14 @@ export const listModel = async (context: AdminContext, modelName: ModelName, que
         institutionId,
         ...(params.courseId ? { courseId: params.courseId } : {}),
         ...(params.semesterId ? { semesterId: params.semesterId } : {}),
-        ...(search ? { OR: [{ name: { contains: search, mode: 'insensitive' } }, { code: { contains: search, mode: 'insensitive' } }] } : {}),
+        ...(search
+          ? {
+              OR: [
+                { name: { contains: search, mode: 'insensitive' } },
+                { code: { contains: search, mode: 'insensitive' } },
+              ],
+            }
+          : {}),
       };
     }
     if (modelName === 'semester' || modelName === 'section') {
@@ -352,20 +464,38 @@ export const listModel = async (context: AdminContext, modelName: ModelName, que
     }
     return {
       institutionId,
-      ...(search ? { OR: [{ name: { contains: search, mode: 'insensitive' } }, { code: { contains: search, mode: 'insensitive' } }] } : {}),
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: 'insensitive' } },
+              { code: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
     };
   })();
-  const include = modelName === 'professorSubjectAssignment'
-    ? { professor: { select: { id: true, name: true, email: true } }, course: true, subject: true, semester: true, section: true }
-    : modelName === 'subject'
-      ? { course: true, semester: true }
-      : modelName === 'semester'
-        ? { course: true }
-        : modelName === 'section'
+  const include =
+    modelName === 'professorSubjectAssignment'
+      ? assignmentInclude
+      : modelName === 'subject'
         ? { course: true, semester: true }
-        : modelName === 'course'
-          ? { _count: { select: { semesters: true, sections: true, subjects: true, students: true, professorAssignments: true } } }
-          : undefined;
+        : modelName === 'semester'
+          ? { course: true }
+          : modelName === 'section'
+            ? { course: true, semester: true }
+            : modelName === 'course'
+              ? {
+                  _count: {
+                    select: {
+                      semesters: true,
+                      sections: true,
+                      subjects: true,
+                      students: true,
+                      professorAssignments: true,
+                    },
+                  },
+                }
+              : undefined;
   const [items, total] = await Promise.all([
     model.findMany({ where, ...(include ? { include } : {}), skip, take, orderBy: { createdAt: 'desc' } }),
     model.count({ where }),
@@ -377,8 +507,47 @@ export const createModel = async (context: AdminContext, modelName: ModelName, d
   const institutionId = requireInstitutionId(context.institutionId);
   const model = modelMap[modelName] as any;
   await validateModelRelations(institutionId, modelName, data);
-  const item = await model.create({ data: modelName === 'professorSubjectAssignment' ? data : { ...data, institutionId } });
-  await writeAuditLog({ actorId: context.userId, institutionId, action: 'CREATE', entityType: modelName, entityId: item.id, metadata: data });
+
+  if (modelName === 'professorSubjectAssignment') {
+    const professorProfile = await prisma.professorProfile.findUnique({ where: { userId: data.professorId } });
+    const existingInactive = await prisma.professorSubjectAssignment.findFirst({
+      where: {
+        professorId: data.professorId,
+        courseId: data.courseId,
+        semesterId: data.semesterId ?? null,
+        sectionId: data.sectionId ?? null,
+        subjectId: data.subjectId,
+        isActive: false,
+      },
+    });
+    const item = existingInactive
+      ? await prisma.professorSubjectAssignment.update({
+          where: { id: existingInactive.id },
+          data: { ...data, professorProfileId: professorProfile?.id ?? null, isActive: data.isActive ?? true },
+        })
+      : await prisma.professorSubjectAssignment.create({
+          data: { ...data, professorProfileId: professorProfile?.id ?? null, isActive: data.isActive ?? true },
+        });
+    await writeAuditLog({
+      actorId: context.userId,
+      institutionId,
+      action: existingInactive ? 'RESTORE' : 'CREATE',
+      entityType: modelName,
+      entityId: item.id,
+      metadata: data,
+    });
+    return hydrateAssignment(item.id);
+  }
+
+  const item = await model.create({ data: { ...data, institutionId } });
+  await writeAuditLog({
+    actorId: context.userId,
+    institutionId,
+    action: 'CREATE',
+    entityType: modelName,
+    entityId: item.id,
+    metadata: data,
+  });
   return item;
 };
 
@@ -387,8 +556,15 @@ export const updateModel = async (context: AdminContext, modelName: ModelName, i
   const model = modelMap[modelName] as any;
   await validateModelRelations(institutionId, modelName, data, id);
   const item = await model.update({ where: { id }, data });
-  await writeAuditLog({ actorId: context.userId, institutionId, action: 'UPDATE', entityType: modelName, entityId: id, metadata: data });
-  return item;
+  await writeAuditLog({
+    actorId: context.userId,
+    institutionId,
+    action: 'UPDATE',
+    entityType: modelName,
+    entityId: id,
+    metadata: data,
+  });
+  return modelName === 'professorSubjectAssignment' ? hydrateAssignment(item.id) : item;
 };
 
 export const deleteModel = async (context: AdminContext, modelName: ModelName, id: string) => {
@@ -399,42 +575,98 @@ export const deleteModel = async (context: AdminContext, modelName: ModelName, i
   } else {
     await model.delete({ where: { id } });
   }
-  await writeAuditLog({ actorId: context.userId, institutionId, action: 'DELETE', entityType: modelName, entityId: id });
+  await writeAuditLog({
+    actorId: context.userId,
+    institutionId,
+    action: 'DELETE',
+    entityType: modelName,
+    entityId: id,
+  });
 };
 
 const validateModelRelations = async (institutionId: string, modelName: ModelName, data: any, id?: string) => {
   if (modelName === 'semester') {
-    const duplicate = await prisma.semester.findFirst({ where: { courseId: data.courseId, number: data.number, ...(id ? { NOT: { id } } : {}) } });
+    const duplicate = await prisma.semester.findFirst({
+      where: { courseId: data.courseId, number: data.number, ...(id ? { NOT: { id } } : {}) },
+    });
     if (duplicate) throw new AppError('Semester number already exists inside this class', StatusCodes.CONFLICT);
   }
   if (modelName === 'section') {
     if (data.semesterId) {
-      const semester = await prisma.semester.findFirst({ where: { id: data.semesterId, courseId: data.courseId, institutionId } });
+      const semester = await prisma.semester.findFirst({
+        where: { id: data.semesterId, courseId: data.courseId, institutionId },
+      });
       if (!semester) throw new AppError('Semester does not belong to the selected class', StatusCodes.BAD_REQUEST);
     }
-    const duplicate = await prisma.section.findFirst({ where: { courseId: data.courseId, semesterId: data.semesterId ?? null, OR: [{ name: data.name }, ...(data.code ? [{ code: data.code }] : [])], ...(id ? { NOT: { id } } : {}) } });
-    if (duplicate) throw new AppError('Section name or code already exists inside this class and semester', StatusCodes.CONFLICT);
+    const duplicate = await prisma.section.findFirst({
+      where: {
+        courseId: data.courseId,
+        semesterId: data.semesterId ?? null,
+        OR: [{ name: data.name }, ...(data.code ? [{ code: data.code }] : [])],
+        ...(id ? { NOT: { id } } : {}),
+      },
+    });
+    if (duplicate)
+      throw new AppError('Section name or code already exists inside this class and semester', StatusCodes.CONFLICT);
   }
   if (modelName === 'subject') {
     if (data.semesterId) {
-      const semester = await prisma.semester.findFirst({ where: { id: data.semesterId, courseId: data.courseId, institutionId } });
+      const semester = await prisma.semester.findFirst({
+        where: { id: data.semesterId, courseId: data.courseId, institutionId },
+      });
       if (!semester) throw new AppError('Semester does not belong to the selected class', StatusCodes.BAD_REQUEST);
     }
-    const duplicate = await prisma.subject.findFirst({ where: { institutionId, courseId: data.courseId, code: data.code, ...(id ? { NOT: { id } } : {}) } });
+    const duplicate = await prisma.subject.findFirst({
+      where: { institutionId, courseId: data.courseId, code: data.code, ...(id ? { NOT: { id } } : {}) },
+    });
     if (duplicate) throw new AppError('Subject code already exists inside this class', StatusCodes.CONFLICT);
   }
   if (modelName === 'professorSubjectAssignment') {
-    const [professor, semester, section, subject] = await Promise.all([
-      prisma.user.findFirst({ where: { id: data.professorId, institutionId, role: { in: teacherRoles }, isActive: true } }),
-      prisma.semester.findFirst({ where: { id: data.semesterId, courseId: data.courseId, institutionId } }),
-      prisma.section.findFirst({ where: { id: data.sectionId, courseId: data.courseId, semesterId: data.semesterId, institutionId } }),
-      prisma.subject.findFirst({ where: { id: data.subjectId, courseId: data.courseId, semesterId: data.semesterId, institutionId } }),
+    const [professor, course, semester, section, subject] = await Promise.all([
+      prisma.user.findFirst({
+        where: { id: data.professorId, institutionId, role: { in: teacherRoles }, isActive: true },
+      }),
+      prisma.course.findFirst({ where: { id: data.courseId, institutionId, isActive: true } }),
+      data.semesterId
+        ? prisma.semester.findFirst({ where: { id: data.semesterId, courseId: data.courseId, institutionId, isActive: true } })
+        : Promise.resolve(null),
+      data.sectionId
+        ? prisma.section.findFirst({
+            where: {
+              id: data.sectionId,
+              courseId: data.courseId,
+              ...(data.semesterId ? { semesterId: data.semesterId } : {}),
+              institutionId,
+              isActive: true,
+            },
+          })
+        : Promise.resolve(null),
+      prisma.subject.findFirst({
+        where: {
+          id: data.subjectId,
+          courseId: data.courseId,
+          ...(data.semesterId ? { OR: [{ semesterId: data.semesterId }, { semesterId: null }] } : {}),
+          institutionId,
+          isActive: true,
+        },
+      }),
     ]);
-    if (!professor) throw new AppError('Professor is required and must be active', StatusCodes.BAD_REQUEST);
-    if (!semester) throw new AppError('Semester must belong to the selected class', StatusCodes.BAD_REQUEST);
-    if (!section) throw new AppError('Section must belong to the selected class and semester', StatusCodes.BAD_REQUEST);
+    if (!professor) throw new AppError('Teacher is required and must be active', StatusCodes.BAD_REQUEST);
+    if (!course) throw new AppError('Class must exist and be active', StatusCodes.BAD_REQUEST);
+    if (data.semesterId && !semester) throw new AppError('Semester must belong to the selected class', StatusCodes.BAD_REQUEST);
+    if (data.sectionId && !section) throw new AppError('Section must belong to the selected class and semester', StatusCodes.BAD_REQUEST);
     if (!subject) throw new AppError('Subject must belong to the selected class and semester', StatusCodes.BAD_REQUEST);
-    const duplicate = await prisma.professorSubjectAssignment.findFirst({ where: { professorId: data.professorId, courseId: data.courseId, semesterId: data.semesterId, sectionId: data.sectionId, subjectId: data.subjectId, ...(id ? { NOT: { id } } : {}) } });
-    if (duplicate) throw new AppError('This professor assignment already exists', StatusCodes.CONFLICT);
+    const duplicate = await prisma.professorSubjectAssignment.findFirst({
+      where: {
+        professorId: data.professorId,
+        courseId: data.courseId,
+        semesterId: data.semesterId ?? null,
+        sectionId: data.sectionId ?? null,
+        subjectId: data.subjectId,
+        isActive: true,
+        ...(id ? { NOT: { id } } : {}),
+      },
+    });
+    if (duplicate) throw new AppError('This teacher assignment already exists', StatusCodes.CONFLICT);
   }
 };

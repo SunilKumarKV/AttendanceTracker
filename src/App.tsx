@@ -6,6 +6,11 @@ import { Loader, ToastSetup } from './components/common';
 import { ProtectedRoute, RoleRoute } from './routes';
 
 const Login = lazy(() => import('./components/Login').then((module) => ({ default: module.Login })));
+const ForgotPassword = lazy(() => import('./components/ForgotPassword').then((module) => ({ default: module.ForgotPassword })));
+const ResetPassword = lazy(() => import('./components/ResetPassword').then((module) => ({ default: module.ResetPassword })));
+const AuditLogs = lazy(() => import('./components/AuditLogs').then((module) => ({ default: module.AuditLogs })));
+const AttendanceControl = lazy(() => import('./components/AttendanceControl').then((module) => ({ default: module.AttendanceControl })));
+const TeacherRequests = lazy(() => import('./components/TeacherRequests').then((module) => ({ default: module.TeacherRequests }))); 
 const Dashboard = lazy(() => import('./components/Dashboard').then((module) => ({ default: module.Dashboard })));
 const MarkAttendance = lazy(() => import('./components/MarkAttendance').then((module) => ({ default: module.MarkAttendance })));
 const ProfessorDashboard = lazy(() => import('./components/ProfessorDashboard').then((module) => ({ default: module.ProfessorDashboard })));
@@ -32,6 +37,8 @@ export default function App() {
           <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           
           <Route
             path="/mark-attendance"
@@ -108,6 +115,24 @@ export default function App() {
             }
           />
           <Route
+            path="/attendance-control"
+            element={
+              <RoleRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'HOD']}>
+                <AttendanceControl />
+              </RoleRoute>
+            }
+          />
+
+          <Route
+            path="/audit-logs"
+            element={
+              <RoleRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'HOD']}>
+                <AuditLogs />
+              </RoleRoute>
+            }
+          />
+
+          <Route
             path="/notifications"
             element={
               <RoleRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'HOD']}>
@@ -148,6 +173,15 @@ export default function App() {
               </RoleRoute>
             }
           />
+          <Route
+            path="/teacher-requests"
+            element={
+              <RoleRoute allowedRoles={['TEACHER', 'PROFESSOR']}>
+                <TeacherRequests />
+              </RoleRoute>
+            }
+          />
+
           <Route
             path="/professor-settings"
             element={

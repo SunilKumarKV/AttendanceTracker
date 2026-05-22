@@ -4,18 +4,27 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port=3000 --host=0.0.0.0",
-    "build": "vite build",
+    "dev": "pnpm run dev:backend & pnpm run dev:frontend",
+    "build": "pnpm run build:frontend && pnpm run build:backend",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "lint": "eslint . && tsc --noEmit",
-    "typecheck": "tsc --noEmit",
+    "lint": "eslint . && tsc --noEmit && pnpm --dir backend lint",
+    "typecheck": "tsc --noEmit && pnpm --dir backend typecheck",
     "lint:strict": "tsc --noEmit -p tsconfig.strict.json",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
-    "test": "vitest run",
+    "test": "vitest run && pnpm --dir backend test",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "dev:frontend": "vite --port=3000 --host=0.0.0.0",
+    "dev:backend": "pnpm --dir backend dev",
+    "build:frontend": "vite build",
+    "build:backend": "pnpm --dir backend build",
+    "prisma": "pnpm --dir backend prisma",
+    "prisma:generate": "pnpm --dir backend prisma generate",
+    "prisma:validate": "pnpm --dir backend prisma validate",
+    "prisma:migrate": "pnpm --dir backend prisma migrate dev",
+    "prisma:seed": "pnpm --dir backend prisma db seed"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.14",
@@ -54,5 +63,6 @@
     "typescript-eslint": "^8.59.4",
     "vite": "^6.2.0",
     "vitest": "^4.1.7"
-  }
+  },
+  "packageManager": "pnpm@10.15.0"
 }

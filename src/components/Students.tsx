@@ -12,7 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
-import { Course, getAcademicResource, Section, Semester, createStudent, deleteStudent, getStudents, updateStudent } from '../api/admin';
+import { Course, getAcademicResource, Section, Semester, createStudent, deleteStudent, getStudents, importStudentsFile, StudentImportResult, updateStudent } from '../api/admin';
 import { ConfirmDialog, EmptyState, ErrorState, Pagination, TableSkeleton } from './common';
 import { Student } from '../types';
 import { useDebounce } from '../hooks';
@@ -40,7 +40,8 @@ export const Students: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [previewData, setPreviewData] = useState<Student[]>([]);
+  const [selectedImportFile, setSelectedImportFile] = useState<File | null>(null);
+  const [importResult, setImportResult] = useState<StudentImportResult | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<Student>(emptyStudent);
@@ -162,93 +163,77 @@ export const Students: React.FC = () => {
     }
   };
 
-  const validateImportRow = (row: any, index: number) => {
-    const required = ['Name', 'Roll No', 'Class Code', 'Section Code'];
-    const missing = required.filter(col => !row[col] && row[col] !== 0);
-    if (missing.length > 0) throw new Error(`Row ${index + 1} is missing columns: ${missing.join(', ')}`);
-    const course = courses.find((item) => item.code === String(row['Class Code']).trim() || item.name === String(row.Class ?? '').trim());
-    const section = sections.find((item) => item.code === String(row['Section Code']).trim() && (!course || item.courseId === course.id));
-    if (!course) throw new Error(`Row ${index + 1} has an unknown class code`);
-    if (!section) throw new Error(`Row ${index + 1} has an unknown section code`);
-    return {
-      name: String(row.Name).trim(),
-      rollNo: String(row['Roll No']).trim(),
-      email: String(row.Email ?? '').trim(),
-      phone: String(row.Phone ?? '').trim(),
-      parentPhone: String(row['Parent Phone'] ?? '').trim(),
-      subject: String(row.Subject ?? '').trim(),
-      courseId: course.id,
-      semesterId: section.semesterId ?? undefined,
-      sectionId: section.id,
-      isActive: true,
-      attendancePercentage: 0,
-    };
+  const validateImportFile = (file: File) => {
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    if (!extension || !['csv', 'xlsx'].includes(extension)) {
+      toast.error('Please upload a valid .csv or .xlsx file.');
+      return false;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('File size must be 2 MB or less.');
+      return false;
+    }
+    return true;
   };
 
-  const parseFile = (file: File) => {
-    const extension = file.name.split('.').pop()?.toLowerCase();
-    if (extension === 'csv') {
-      void import('papaparse').then(({ default: Papa }) => Papa.parse(file, {
-        header: true,
-        skipEmptyLines: 'greedy',
-        complete: (results) => {
-          try {
-            setPreviewData((results.data as any[]).filter(row => !Object.values(row).every(v => !v)).map(validateImportRow));
-          } catch (err) {
-            toast.error(err instanceof Error ? err.message : 'Error parsing CSV file.');
-          }
-        },
-        error: () => toast.error('Error parsing CSV file.'),
-      }));
-      return;
-    }
-    if (extension === 'xlsx' || extension === 'xls') {
-      void import('read-excel-file/browser').then(async ({ default: readXlsxFile }) => {
-        try {
-          const rows = await readXlsxFile(file) as unknown as unknown[][];
-          const [headers = [], ...dataRows] = rows;
-          const headerNames = headers.map((header) => String(header ?? '').trim());
-          const records = dataRows.map((row) => Object.fromEntries(
-            headerNames.map((header, index) => [header, row[index] ?? '']),
-          ));
-          setPreviewData(records.filter(row => !Object.values(row).every(v => !v)).map(validateImportRow));
-        } catch (err) {
-          toast.error(err instanceof Error ? err.message : 'Error parsing Excel file.');
-        }
-      });
-      return;
-    }
-    toast.error('Please upload a valid .csv or .xlsx file');
+  const handleFileSelected = (file: File) => {
+    if (!validateImportFile(file)) return;
+    setSelectedImportFile(file);
+    setImportResult(null);
   };
 
   const handleConfirmImport = async () => {
-    setIsImporting(true);
-    let successCount = 0;
-    let failCount = 0;
-    for (const student of previewData) {
-      try {
-        await createStudent(student);
-        successCount++;
-      } catch {
-        failCount++;
-      }
+    if (!selectedImportFile) {
+      toast.error('Please select a CSV or XLSX file first.');
+      return;
     }
-    toast.success(`${successCount} students imported successfully, ${failCount} rows failed/skipped`);
-    setPreviewData([]);
-    setActiveTab('list');
-    setIsImporting(false);
-    await fetchStudents();
+    setIsImporting(true);
+    setImportResult(null);
+    try {
+      const response = await importStudentsFile(selectedImportFile);
+      setImportResult(response.data);
+      if (response.data.importedCount > 0) {
+        toast.success(`${response.data.importedCount} students imported successfully.`);
+        await fetchStudents();
+      }
+      if (response.data.failedCount > 0) {
+        toast.error(`${response.data.failedCount} rows failed validation. Review the row errors below.`);
+      }
+      if (response.data.failedCount === 0) {
+        setSelectedImportFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not import students.');
+    } finally {
+      setIsImporting(false);
+    }
   };
 
+  const sampleStudentRows = () => ([
+    ['name', 'rollNumber', 'email', 'mobile', 'className', 'sectionName', 'parentName', 'parentEmail', 'parentMobile'],
+    ['John Doe', 'CS101', 'john@example.com', '9876543210', courses[0]?.name ?? 'CLASS-NAME', sections[0]?.name ?? 'SECTION-NAME', 'Parent Doe', 'parent@example.com', '9876543211'],
+  ]);
+
   const downloadSampleCSV = () => {
-    const csvContent = [
-      ['Name', 'Email', 'Roll No', 'Class Code', 'Section Code', 'Phone', 'Parent Phone'],
-      ['John Doe', 'john@example.com', 'CS101', courses[0]?.code ?? 'CLASS-CODE', sections[0]?.code ?? 'SECTION-CODE', '9876543210', '9876543211'],
-    ].map(row => row.join(',')).join('\n');
+    const csvContent = sampleStudentRows()
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
     const link = document.createElement('a');
     link.href = URL.createObjectURL(new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }));
     link.download = 'sample_students.csv';
     link.click();
+  };
+
+  const downloadSampleXLSX = () => {
+    const byteCharacters = atob('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');
+    const byteNumbers = Array.from(byteCharacters, (char) => char.charCodeAt(0));
+    const blob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'sample_students.xlsx';
+    link.click();
+    URL.revokeObjectURL(link.href);
   };
 
   const getStatusBadge = (percentage: number) => {
@@ -279,7 +264,7 @@ export const Students: React.FC = () => {
           <Users size={18} /> Student List
         </button>
         <button onClick={() => setActiveTab('upload')} className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all ${activeTab === 'upload' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-          <Upload size={18} /> Upload CSV
+          <Upload size={18} /> Upload CSV/XLSX
         </button>
       </div>
 
@@ -331,22 +316,47 @@ export const Students: React.FC = () => {
       ) : (
         <div className="space-y-8">
           <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl p-12 flex flex-col items-center justify-center text-center hover:border-blue-400 transition-all group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-            <input type="file" ref={fileInputRef} className="hidden" accept=".csv,.xlsx,.xls" onChange={(e) => { const file = e.target.files?.[0]; if (file) parseFile(file); }} />
+            <input type="file" ref={fileInputRef} className="hidden" accept=".csv,.xlsx" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFileSelected(file); }} />
             <Upload size={32} className="text-blue-600 mb-4" />
             <h3 className="text-xl font-bold text-slate-900 mb-2">Upload Student Data</h3>
-            <p className="text-slate-500 mb-6 max-w-xs">Drag and drop your .csv or .xlsx file here, or click to browse.</p>
+            <p className="text-slate-500 mb-6 max-w-xs">Upload a .csv or .xlsx file with name, rollNumber, email, mobile, className, and sectionName.</p>
             <button onClick={(e) => { e.stopPropagation(); downloadSampleCSV(); }} className="bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-800 transition-all">
               <Download size={18} /> Download Sample CSV
             </button>
+            <button onClick={(e) => { e.stopPropagation(); void downloadSampleXLSX(); }} className="mt-3 bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-blue-700 transition-all">
+              <Download size={18} /> Download Sample XLSX
+            </button>
+            {selectedImportFile && <p className="mt-4 text-sm font-bold text-slate-700">Selected: {selectedImportFile.name}</p>}
           </div>
-          {previewData.length > 0 && (
+          {selectedImportFile && (
             <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
               <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                <h3 className="text-lg font-bold text-slate-900">Import Preview</h3>
+                <h3 className="text-lg font-bold text-slate-900">Ready to Import</h3>
                 <button onClick={handleConfirmImport} disabled={isImporting} className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-2 rounded-xl font-bold shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 transition-all disabled:opacity-50">
-                  {isImporting ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle2 size={18} />} Confirm Import
+                  {isImporting ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle2 size={18} />} Import Students
                 </button>
               </div>
+              {importResult && (
+                <div className="p-6 space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <ImportStat label="Total rows" value={importResult.totalRows} />
+                    <ImportStat label="Imported" value={importResult.importedCount} />
+                    <ImportStat label="Failed" value={importResult.failedCount} />
+                  </div>
+                  {importResult.errors.length > 0 && (
+                    <div className="rounded-2xl border border-red-100 bg-red-50 p-4">
+                      <h4 className="mb-3 font-bold text-red-700">Row-wise errors</h4>
+                      <div className="max-h-72 space-y-2 overflow-y-auto text-sm text-red-700">
+                        {importResult.errors.map((item) => (
+                          <div key={item.row} className="rounded-xl bg-white p-3 shadow-sm">
+                            <strong>Row {item.row}:</strong> {item.errors.join(', ')}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -393,6 +403,14 @@ export const Students: React.FC = () => {
     </div>
   );
 };
+
+
+const ImportStat: React.FC<{ label: string; value: number }> = ({ label, value }) => (
+  <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+    <div className="text-xs font-bold uppercase tracking-widest text-slate-400">{label}</div>
+    <div className="mt-1 text-2xl font-black text-slate-900">{value}</div>
+  </div>
+);
 
 const StudentField: React.FC<{
   label: string;

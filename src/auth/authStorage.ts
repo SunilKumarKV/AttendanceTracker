@@ -1,8 +1,10 @@
 import { User } from '../types';
 
 const USER_STORAGE_KEY = 'attendance_pro_user';
-const TOKEN_STORAGE_KEY = 'authToken';
-const REFRESH_TOKEN_STORAGE_KEY = 'refreshToken';
+
+// Access tokens are intentionally held in memory only. Refresh tokens are issued
+// by the backend as httpOnly cookies so browser JavaScript cannot read them.
+let memoryAccessToken: string | null = null;
 
 export const getStoredUser = (): User | null => {
   const savedUser = localStorage.getItem(USER_STORAGE_KEY);
@@ -27,22 +29,19 @@ export const clearStoredUser = () => {
   localStorage.removeItem(USER_STORAGE_KEY);
 };
 
-export const getAuthToken = () => sessionStorage.getItem(TOKEN_STORAGE_KEY);
+export const getAuthToken = () => memoryAccessToken;
 
 export const setAuthToken = (token: string) => {
-  sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
+  memoryAccessToken = token;
 };
 
 export const clearAuthToken = () => {
-  sessionStorage.removeItem(TOKEN_STORAGE_KEY);
-};
-
-export const getRefreshToken = () => localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
-
-export const setRefreshToken = (token: string) => {
-  localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, token);
+  memoryAccessToken = null;
 };
 
 export const clearRefreshToken = () => {
-  localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+  // Remove legacy refresh/access tokens from older builds.
+  localStorage.removeItem('refreshToken');
+  sessionStorage.removeItem('refreshToken');
+  sessionStorage.removeItem('authToken');
 };

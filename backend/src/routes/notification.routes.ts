@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Router as ExpressRouter } from 'express';
 import * as notificationController from '../controllers/notification.controller.js';
 import { adminOnly } from '../middleware/adminOnly.js';
 import { writeRateLimiter } from '../middleware/rateLimit.js';
@@ -6,7 +6,7 @@ import { validateBody } from '../middleware/validateRequest.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { notificationSettingsSchema, testNotificationSchema } from '../validators/notification.validator.js';
 
-export const notificationRouter = Router();
+export const notificationRouter: ExpressRouter = Router();
 
 notificationRouter.use(['/notifications', '/settings/notifications'], adminOnly);
 notificationRouter.use(['/notifications', '/settings/notifications'], writeRateLimiter);

@@ -6,16 +6,21 @@ export const loginSchema = z.object({
 });
 
 export const refreshSchema = z.object({
-  refreshToken: z.string().min(32),
+  refreshToken: z.string().min(32).optional(),
 });
 
 export const logoutSchema = z.object({
   refreshToken: z.string().min(32).optional(),
 });
 
+const passwordRules = z.string().min(8, 'Password must be at least 8 characters').max(128)
+  .regex(/[A-Z]/, 'Password must include an uppercase letter')
+  .regex(/[a-z]/, 'Password must include a lowercase letter')
+  .regex(/[0-9]/, 'Password must include a number');
+
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
-  newPassword: z.string().min(8).max(128),
+  newPassword: passwordRules,
 });
 
 export const forgotPasswordSchema = z.object({
@@ -24,5 +29,5 @@ export const forgotPasswordSchema = z.object({
 
 export const resetPasswordSchema = z.object({
   token: z.string().min(1),
-  password: z.string().min(8).max(128),
+  password: passwordRules,
 });

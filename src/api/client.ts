@@ -1,6 +1,7 @@
-import { getAuthToken } from '../auth/authStorage';
+import { clearAuthToken, clearRefreshToken, clearStoredUser, getAuthToken, setAuthToken } from '../auth/authStorage';
 
 const DEFAULT_TIMEOUT_MS = 15000;
+const AUTH_REFRESH_PATH = '/auth/refresh';
 
 export interface ApiClientOptions extends RequestInit {
   timeoutMs?: number;
@@ -25,6 +26,8 @@ export class ApiClientError extends Error implements ApiError {
 }
 
 const getBaseUrl = () => import.meta.env.VITE_API_BASE_URL ?? '';
+
+let refreshPromise: Promise<string | null> | null = null;
 
 const normalizeError = (error: unknown): ApiClientError => {
   if (error instanceof ApiClientError) {
@@ -62,6 +65,47 @@ const parseResponse = async (response: Response) => {
   return response.text();
 };
 
+
+const refreshAccessToken = async () => {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const baseUrl = getBaseUrl();
+      const url = `${baseUrl}${AUTH_REFRESH_PATH}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+
+      const data = await parseResponse(response);
+
+      if (!response.ok || typeof data !== 'object' || !data || !('data' in data)) {
+        clearAuthToken();
+        clearRefreshToken();
+        clearStoredUser();
+        return null;
+      }
+
+      const authData = (data as { data?: { accessToken?: string } }).data;
+
+      if (!authData?.accessToken) {
+        clearAuthToken();
+        clearRefreshToken();
+        clearStoredUser();
+        return null;
+      }
+
+      setAuthToken(authData.accessToken);
+      return authData.accessToken;
+    })().finally(() => {
+      refreshPromise = null;
+    });
+  }
+
+  return refreshPromise;
+};
+
 export const apiClient = async <T>(path: string, options: ApiClientOptions = {}): Promise<T> => {
   const { timeoutMs = DEFAULT_TIMEOUT_MS, headers, ...requestOptions } = options;
   const controller = new AbortController();
@@ -71,15 +115,32 @@ export const apiClient = async <T>(path: string, options: ApiClientOptions = {})
   const url = path.startsWith('http') ? path : `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
 
   try {
-    const response = await fetch(url, {
-      ...requestOptions,
-      signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...headers,
-      },
+    const isFormData = requestOptions.body instanceof FormData;
+    const buildHeaders = (authToken: string | null) => ({
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      ...headers,
     });
+
+    let response = await fetch(url, {
+      ...requestOptions,
+      credentials: 'include',
+      signal: controller.signal,
+      headers: buildHeaders(token),
+    });
+
+    if (response.status === 401 && path !== AUTH_REFRESH_PATH) {
+      const newToken = await refreshAccessToken();
+
+      if (newToken) {
+        response = await fetch(url, {
+          ...requestOptions,
+          credentials: 'include',
+          signal: controller.signal,
+          headers: buildHeaders(newToken),
+        });
+      }
+    }
 
     const data = await parseResponse(response);
 

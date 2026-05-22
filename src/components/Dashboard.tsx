@@ -90,6 +90,20 @@ export const Dashboard: React.FC = () => {
     <div className="space-y-8 pb-12">
       <Toaster position="top-right" />
       <SetupChecklist data={data} />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Pending Corrections</p>
+          <p className="mt-2 text-3xl font-black text-slate-900">{data.pendingCorrections ?? 0}</p>
+        </div>
+        <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Pending Leave Requests</p>
+          <p className="mt-2 text-3xl font-black text-slate-900">{data.pendingLeaveRequests ?? 0}</p>
+        </div>
+        <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Today Status</p>
+          <p className="mt-2 text-lg font-black text-slate-900">{data.todayStatus?.holiday ? `Holiday: ${data.todayStatus.holiday.name}` : data.todayStatus?.workingDay ? 'Working Day' : 'Non-working Day'}</p>
+        </div>
+      </div>
       
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

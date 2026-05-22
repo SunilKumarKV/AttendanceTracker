@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Router as ExpressRouter } from 'express';
 import * as profileController from '../controllers/profile.controller.js';
 import { authenticate } from '../middleware/auth.js';
 import { writeRateLimiter } from '../middleware/rateLimit.js';
@@ -6,7 +6,7 @@ import { validateBody } from '../middleware/validateRequest.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { profilePasswordSchema, profileUpdateSchema } from '../validators/profile.validator.js';
 
-export const profileRouter = Router();
+export const profileRouter: ExpressRouter = Router();
 
 profileRouter.use('/profile', authenticate);
 profileRouter.use('/profile', writeRateLimiter);

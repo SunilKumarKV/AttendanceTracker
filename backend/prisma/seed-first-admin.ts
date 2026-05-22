@@ -60,7 +60,7 @@ async function main() {
     create: { institutionId: institution.id },
   });
 
-  console.log(`First admin ready for ${institutionName}: ${email}`);
+  console.info(`First admin ready for ${institutionName}: ${email}`);
 }
 
 main()

@@ -2,6 +2,7 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../auth';
 import { Role } from '../types';
+import { Loader } from '../components/common';
 import { ProtectedRoute } from './ProtectedRoute';
 
 interface RoleRouteProps {
@@ -14,7 +15,11 @@ const getFallbackRoute = (role: Role | null) => (
 );
 
 export const RoleRoute: React.FC<RoleRouteProps> = ({ allowedRoles, children }) => {
-  const { isAuthenticated, role } = useAuth();
+  const { isAuthenticated, isAuthLoading, role } = useAuth();
+
+  if (isAuthLoading) {
+    return <Loader label="Checking permissions..." />;
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;

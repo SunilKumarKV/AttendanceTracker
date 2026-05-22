@@ -38,3 +38,20 @@ export const updateSession = async (request: Request, response: Response) => {
 export const lockSession = async (request: Request, response: Response) => {
   response.status(StatusCodes.OK).json({ success: true, data: await professorService.lockAttendanceSession(contextFrom(request), request.params.id) });
 };
+
+
+export const createCorrectionRequest = async (request: Request, response: Response) => {
+  response.status(StatusCodes.CREATED).json({ success: true, data: await professorService.requestAttendanceCorrection(contextFrom(request), request.body) });
+};
+
+export const listCorrectionRequests = async (request: Request, response: Response) => {
+  response.status(StatusCodes.OK).json({ success: true, data: await professorService.listMyCorrectionRequests(contextFrom(request)) });
+};
+
+export const createLeaveRequest = async (request: Request, response: Response) => {
+  response.status(StatusCodes.CREATED).json({ success: true, data: await professorService.requestStudentLeave(contextFrom(request), request.body) });
+};
+
+export const listLeaveRequests = async (request: Request, response: Response) => {
+  response.status(StatusCodes.OK).json({ success: true, data: await professorService.listMyLeaveRequests(contextFrom(request)) });
+};

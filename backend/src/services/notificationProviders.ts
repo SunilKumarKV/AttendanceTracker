@@ -22,7 +22,7 @@ const cleanPhone = (value: string) => value.replace(/[^+\d]/g, '');
 const postJson = async (url: string, body: unknown, headers: Record<string, string>) => {
   const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
   const text = await response.text();
-  let data: any = {};
+  let data: any;
   try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
   if (!response.ok) throw new Error(data?.error?.message || data?.message || `Provider HTTP ${response.status}`);
   return data;

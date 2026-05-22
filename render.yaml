@@ -4,8 +4,8 @@ services:
     runtime: node
     plan: starter
     rootDir: backend
-    buildCommand: npm ci && npm run prisma:generate && npm run build && npm run prisma:deploy
-    startCommand: npm run start
+    buildCommand: pnpm install --frozen-lockfile && pnpm run prisma:generate && pnpm run build && pnpm run prisma:deploy
+    startCommand: pnpm run start
     healthCheckPath: /api/health
     autoDeploy: false
     envVars:

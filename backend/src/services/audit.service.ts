@@ -3,11 +3,30 @@ import { prisma } from '../config/prisma.js';
 interface AuditInput {
   actorId?: string;
   institutionId?: string | null;
-  action: 'CREATE' | 'UPDATE' | 'DELETE' | 'EXPORT';
+  action: AuditAction;
   entityType: string;
   entityId?: string;
   metadata?: unknown;
+  ipAddress?: string;
+  userAgent?: string;
 }
+
+export type AuditAction =
+  | 'CREATE'
+  | 'UPDATE'
+  | 'DELETE'
+  | 'EXPORT'
+  | 'IMPORT'
+  | 'RESTORE'
+  | 'LOGIN'
+  | 'LOGOUT'
+  | 'LOGIN_FAILED'
+  | 'PASSWORD_RESET_REQUEST'
+  | 'PASSWORD_RESET'
+  | 'PASSWORD_CHANGE'
+  | 'APPROVE'
+  | 'REJECT'
+  | 'UPSERT';
 
 export const writeAuditLog = async ({
   actorId,
@@ -16,6 +35,8 @@ export const writeAuditLog = async ({
   entityType,
   entityId,
   metadata,
+  ipAddress,
+  userAgent,
 }: AuditInput) => {
   await prisma.auditLog.create({
     data: {
@@ -25,6 +46,32 @@ export const writeAuditLog = async ({
       entityType,
       entityId,
       metadata: metadata === undefined ? undefined : JSON.parse(JSON.stringify(metadata)),
+      ipAddress,
+      userAgent,
     },
   });
+};
+
+
+export const listAuditLogs = async (institutionId: string, limit = 50) => (
+  prisma.auditLog.findMany({
+    where: { institutionId },
+    include: { actor: { select: { id: true, name: true, email: true, role: true } } },
+    orderBy: { createdAt: 'desc' },
+    take: Math.min(Math.max(limit, 1), 100),
+  })
+);
+
+export const listActivityTimeline = async (institutionId: string, limit = 20) => {
+  const logs = await listAuditLogs(institutionId, limit);
+  return logs.map((log) => ({
+    id: log.id,
+    actor: log.actor?.name ?? 'System',
+    role: log.actor?.role ?? null,
+    action: log.action,
+    entityType: log.entityType,
+    entityId: log.entityId,
+    createdAt: log.createdAt,
+    metadata: log.metadata,
+  }));
 };

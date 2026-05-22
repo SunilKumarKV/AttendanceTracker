@@ -1,19 +1,41 @@
 import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import * as authService from '../services/auth.service.js';
+import { clearRefreshTokenCookie, getRefreshTokenFromRequest, setRefreshTokenCookie } from '../utils/cookies.js';
+
+const requestMeta = (request: Request) => ({
+  ipAddress: request.ip,
+  userAgent: request.get('user-agent'),
+});
 
 export const login = async (request: Request, response: Response) => {
-  const result = await authService.login(request.body.email, request.body.password);
-  response.status(StatusCodes.OK).json({ success: true, data: result });
+  const result = await authService.login(request.body.email, request.body.password, requestMeta(request));
+  setRefreshTokenCookie(response, result.refreshToken);
+  const { refreshToken: _refreshToken, ...safeResult } = result;
+  response.status(StatusCodes.OK).json({ success: true, data: safeResult });
 };
 
 export const refresh = async (request: Request, response: Response) => {
-  const result = await authService.refresh(request.body.refreshToken);
-  response.status(StatusCodes.OK).json({ success: true, data: result });
+  const refreshToken = getRefreshTokenFromRequest(request);
+  const result = await authService.refresh(refreshToken ?? '');
+  setRefreshTokenCookie(response, result.refreshToken);
+  const { refreshToken: _refreshToken, ...safeResult } = result;
+  response.status(StatusCodes.OK).json({ success: true, data: safeResult });
 };
 
 export const logout = async (request: Request, response: Response) => {
-  await authService.logout(request.body.refreshToken, request.auth?.userId);
+  await authService.logout(getRefreshTokenFromRequest(request), request.auth?.userId, requestMeta(request));
+  clearRefreshTokenCookie(response);
+  response.status(StatusCodes.OK).json({ success: true });
+};
+
+export const forgotPassword = async (request: Request, response: Response) => {
+  await authService.requestPasswordReset(request.body.email, requestMeta(request));
+  response.status(StatusCodes.OK).json({ success: true, message: 'If that email exists, a password reset link has been sent.' });
+};
+
+export const resetPassword = async (request: Request, response: Response) => {
+  await authService.resetPassword(request.body.token, request.body.password, requestMeta(request));
   response.status(StatusCodes.OK).json({ success: true });
 };
 

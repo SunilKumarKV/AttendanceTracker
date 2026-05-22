@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { prisma } from '../src/config/prisma.js';
 
 if (process.env.NODE_ENV === 'production') {
-  throw new Error('Refusing to run development seed in production. Use npm run seed:first-admin instead.');
+  throw new Error('Refusing to run development seed in production. Use pnpm run seed:first-admin instead.');
 }
 
 const institutionSeed = {
@@ -197,9 +197,27 @@ async function main() {
   }
 
   const students = [
-    { rollNumber: 'CSE001', name: 'Aarav Sharma', email: 'aarav.sharma@example.local', phone: '9876543210', parentPhone: '9876543211' },
-    { rollNumber: 'CSE002', name: 'Diya Patel', email: 'diya.patel@example.local', phone: '9876543212', parentPhone: '9876543213' },
-    { rollNumber: 'CSE003', name: 'Kabir Rao', email: 'kabir.rao@example.local', phone: '9876543214', parentPhone: '9876543215' },
+    {
+      rollNumber: 'CSE001',
+      name: 'Aarav Sharma',
+      email: 'aarav.sharma@example.local',
+      phone: '9876543210',
+      parentPhone: '9876543211',
+    },
+    {
+      rollNumber: 'CSE002',
+      name: 'Diya Patel',
+      email: 'diya.patel@example.local',
+      phone: '9876543212',
+      parentPhone: '9876543213',
+    },
+    {
+      rollNumber: 'CSE003',
+      name: 'Kabir Rao',
+      email: 'kabir.rao@example.local',
+      phone: '9876543214',
+      parentPhone: '9876543215',
+    },
   ];
 
   for (const student of students) {
@@ -226,10 +244,10 @@ async function main() {
     });
   }
 
-  console.log('Development admin, teacher, class, assignment, and students seeded.');
-  console.log('Admin email: admin@attendancetracker.local');
-  console.log('Teacher email: professor@attendancetracker.local');
-  console.log(`Default password: ${defaultPassword}`);
+  console.info('Development admin, teacher, class, assignment, and students seeded.');
+  console.info('Admin email: admin@attendancetracker.local');
+  console.info('Teacher email: professor@attendancetracker.local');
+  console.info('Seed password source: DEV_SEED_PASSWORD environment variable or generated random value.');
 }
 
 main()

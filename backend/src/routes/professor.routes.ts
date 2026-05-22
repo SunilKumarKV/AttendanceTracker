@@ -1,12 +1,12 @@
-import { Router } from 'express';
+import { Router, type Router as ExpressRouter } from 'express';
 import * as professorController from '../controllers/professor.controller.js';
 import { professorOnly } from '../middleware/professorOnly.js';
 import { writeRateLimiter } from '../middleware/rateLimit.js';
 import { validateBody } from '../middleware/validateRequest.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { createAttendanceSessionSchema, updateAttendanceSessionSchema } from '../validators/attendance.validator.js';
+import { correctionRequestSchema, createAttendanceSessionSchema, leaveRequestSchema, updateAttendanceSessionSchema } from '../validators/attendance.validator.js';
 
-export const professorRouter = Router();
+export const professorRouter: ExpressRouter = Router();
 
 professorRouter.use(['/professor', '/attendance'], professorOnly);
 professorRouter.use('/attendance', writeRateLimiter);
@@ -20,3 +20,7 @@ professorRouter.get('/attendance/sessions', asyncHandler(professorController.lis
 professorRouter.get('/attendance/sessions/:id', asyncHandler(professorController.getSession));
 professorRouter.patch('/attendance/sessions/:id', validateBody(updateAttendanceSessionSchema), asyncHandler(professorController.updateSession));
 professorRouter.post('/attendance/sessions/:id/lock', asyncHandler(professorController.lockSession));
+professorRouter.get('/attendance/correction-requests', asyncHandler(professorController.listCorrectionRequests));
+professorRouter.post('/attendance/correction-requests', validateBody(correctionRequestSchema), asyncHandler(professorController.createCorrectionRequest));
+professorRouter.get('/attendance/leave-requests', asyncHandler(professorController.listLeaveRequests));
+professorRouter.post('/attendance/leave-requests', validateBody(leaveRequestSchema), asyncHandler(professorController.createLeaveRequest));

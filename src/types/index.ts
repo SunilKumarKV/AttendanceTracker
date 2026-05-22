@@ -8,6 +8,8 @@ export interface Student {
   name: string;
   rollNo: string;
   phone: string;
+  parentName?: string;
+  parentEmail?: string;
   parentPhone: string;
   email?: string;
   semesterId?: string;
