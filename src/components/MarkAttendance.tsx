@@ -250,7 +250,7 @@ export const MarkAttendance: React.FC = () => {
         });
         setEditingSession(response.data);
         navigate(`/mark-attendance?session=${response.data.id}`, { replace: true });
-        toast.success('Attendance saved.');
+        toast.success('Attendance saved successfully.');
       }
       await refreshHistory();
     } catch (err) {

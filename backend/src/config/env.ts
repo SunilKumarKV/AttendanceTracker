@@ -52,7 +52,7 @@ const envSchema = z.object({
 const parsed = envSchema.safeParse({
   ...process.env,
   NODE_ENV: nodeEnv,
-  DATABASE_URL: process.env.DATABASE_URL ?? (isProduction ? '' : 'postgresql://localhost:5432/attendance_tracker?schema=public'),
+  DATABASE_URL: process.env.DATABASE_URL ?? (isProduction ? '' : 'postgresql://localhost:5432/attendancepro?schema=public'),
   JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET ?? (isProduction ? '' : 'development-access-secret'),
   JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET ?? (isProduction ? '' : 'development-refresh-secret'),
 });

@@ -354,12 +354,12 @@ export const Students: React.FC = () => {
 
       {(isAddModalOpen || isEditModalOpen) && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-[32px] w-full max-w-lg shadow-2xl overflow-hidden">
+          <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-[32px] bg-white shadow-2xl">
             <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <h3 className="text-2xl font-bold text-slate-900">{isAddModalOpen ? 'Add New Student' : 'Edit Student Details'}</h3>
               <button onClick={() => { setIsAddModalOpen(false); setIsEditModalOpen(false); setSelectedStudent(null); resetForm(); }} aria-label="Close student form" className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24} /></button>
             </div>
-            <form onSubmit={saveStudent} className="p-8 space-y-6">
+            <form onSubmit={saveStudent} className="space-y-6 overflow-y-auto p-8">
               <StudentField label="Full Name" value={formData.name} error={formErrors.name} onChange={(name) => setFormData({ ...formData, name })} />
               <StudentField label="Email" value={formData.email ?? ''} onChange={(email) => setFormData({ ...formData, email })} required={false} />
               <StudentField label="Roll Number" value={formData.rollNo} error={formErrors.rollNo} disabled={isEditModalOpen} onChange={(rollNo) => setFormData({ ...formData, rollNo })} />
