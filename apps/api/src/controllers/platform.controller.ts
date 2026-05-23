@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
+import * as auditService from '../services/audit.service.js';
 import * as platformService from '../services/platform.service.js';
 
 const contextFrom = (request: Request) => ({
@@ -26,6 +27,13 @@ export const updateInstitution = async (request: Request, response: Response) =>
 
 export const createInstitutionAdmin = async (request: Request, response: Response) => {
   response.status(StatusCodes.CREATED).json({ success: true, data: await platformService.createInstitutionAdmin(contextFrom(request), request.params.id, request.body) });
+};
+
+export const auditLogs = async (request: Request, response: Response) => {
+  const limit = request.query.limit ? Number(request.query.limit) : 100;
+  const institutionId = typeof request.query.institutionId === 'string' ? request.query.institutionId : undefined;
+  const action = typeof request.query.action === 'string' ? request.query.action : undefined;
+  response.status(StatusCodes.OK).json({ success: true, data: await auditService.listPlatformAuditLogs({ limit, institutionId, action }) });
 };
 
 export const usage = async (request: Request, response: Response) => {
