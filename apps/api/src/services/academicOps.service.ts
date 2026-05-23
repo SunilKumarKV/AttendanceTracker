@@ -110,7 +110,9 @@ export const listResources = async (ctx: Context) => prisma.academicResource.fin
 export const createResource = async (ctx: Context, body: Record<string, unknown>) => {
   const institutionId = institution(ctx); const courseId = clean(body.courseId); const subjectId = clean(body.subjectId); const sectionId = nullable(body.sectionId);
   await ensureCourse(institutionId, courseId); await ensureSection(institutionId, courseId, sectionId); await ensureSubject(institutionId, courseId, subjectId);
-  if (![Role.ADMIN, Role.SUPER_ADMIN, Role.HOD].includes(ctx.role as Role)) {
+ const allowedRoles: Role[] = [Role.ADMIN, Role.SUPER_ADMIN, Role.HOD];
+
+if (!ctx.role || !allowedRoles.includes(ctx.role)) {
     const assigned = await prisma.professorSubjectAssignment.findFirst({ where: { professorId: user(ctx), courseId, subjectId, sectionId: sectionId ?? undefined, isActive: true } });
     if (!assigned) throw new AppError('Teachers can upload resources only for assigned class/subject', StatusCodes.FORBIDDEN);
   }

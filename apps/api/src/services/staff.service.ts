@@ -267,7 +267,13 @@ export const getStaffDashboard = async (context: Context) => {
   return {
     staff,
     todayRecord,
-    monthlySummary: STAFF_STATUSES.values ? Array.from(STAFF_STATUSES).reduce((acc, status) => ({ ...acc, [status]: monthlyRecords.filter((record) => record.status === status).length }), {}) : {},
+    monthlySummary: Array.from(STAFF_STATUSES).reduce(
+  (acc, status) => ({
+    ...acc,
+    [status]: monthlyRecords.filter((record) => record.status === status).length,
+  }),
+  {}
+),
     monthlyRecords,
     leaves,
   };

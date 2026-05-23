@@ -28,7 +28,10 @@ export const exportReport = async (req: Request, res: Response) => {
   const format = String(req.query.format ?? 'csv').toLowerCase();
   const rows = await service.reportRows(contextFrom(req), type);
   if (format === 'pdf') {
-    const pdf = toSimplePdf(`Library/Lab ${type} Report`, rows.map((row) => Object.values(row).join(' | ')));
+    const pdf = toSimplePdf(
+  `Library/Lab ${type} Report`,
+  rows.map((row: Record<string, unknown>) => Object.values(row).join(' | '))
+);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${type}.pdf"`);
     res.send(pdf);

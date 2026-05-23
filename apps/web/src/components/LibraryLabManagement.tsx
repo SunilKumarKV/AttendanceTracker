@@ -121,7 +121,22 @@ export function LibraryLabManagement() {
   };
 
   if (loading) return <Loader label="Loading library and lab management..." />;
-  if (error) return <ErrorState title="Could not load library/lab module" message={error} onRetry={refresh} />;
+ if (error) {
+  return (
+    <div className="space-y-4">
+      <ErrorState
+        title="Could not load library/lab module"
+        message={error}
+      />
+      <button
+        onClick={() => void refresh()}
+        className="rounded-lg bg-blue-600 px-4 py-2 text-white"
+      >
+        Retry
+      </button>
+    </div>
+  );
+}
 
   return (
     <main className="page-shell">

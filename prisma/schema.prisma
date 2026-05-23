@@ -64,7 +64,6 @@ enum DisciplineSeverity {
   HIGH
 }
 
-
 enum LibraryIssueTargetType {
   STUDENT
   STAFF
@@ -102,182 +101,182 @@ enum MaintenanceStatus {
 }
 
 model Institution {
-  id               String            @id @default(cuid())
-  name             String
-  code             String            @unique
-  logoUrl          String?
-  email            String?
-  phone            String?
-  address          String?
-  contactPerson    String?
-  academicYear     String?
-  subscriptionPlan SubscriptionPlan  @default(FREE_TRIAL)
-  subscriptionStatus SubscriptionStatus @default(TRIALING)
-  trialEndsAt      DateTime?
-  studentLimit     Int               @default(100)
-  teacherLimit     Int               @default(10)
-  staffLimit       Int               @default(10)
-  featureFlags     Json?
-  isActive         Boolean           @default(true)
-  users            User[]
-  professorProfiles ProfessorProfile[]
-  students         Student[]
-  courses          Course[]
-  subjects         Subject[]
-  semesters        Semester[]
-  sections         Section[]
-  attendanceSessions AttendanceSession[]
-  notificationLogs NotificationLog[]
-  auditLogs        AuditLog[]
-  loginHistory     LoginHistory[]
-  attendancePolicies AttendancePolicy?
-  holidays         Holiday[]
-  correctionRequests AttendanceCorrectionRequest[]
-  leaveRequests    LeaveRequest[]
-  appSettings      AppSettings?
+  id                     String                        @id @default(cuid())
+  name                   String
+  code                   String                        @unique
+  logoUrl                String?
+  email                  String?
+  phone                  String?
+  address                String?
+  contactPerson          String?
+  academicYear           String?
+  subscriptionPlan       SubscriptionPlan              @default(FREE_TRIAL)
+  subscriptionStatus     SubscriptionStatus            @default(TRIALING)
+  trialEndsAt            DateTime?
+  studentLimit           Int                           @default(100)
+  teacherLimit           Int                           @default(10)
+  staffLimit             Int                           @default(10)
+  featureFlags           Json?
+  isActive               Boolean                       @default(true)
+  users                  User[]
+  professorProfiles      ProfessorProfile[]
+  students               Student[]
+  courses                Course[]
+  subjects               Subject[]
+  semesters              Semester[]
+  sections               Section[]
+  attendanceSessions     AttendanceSession[]
+  notificationLogs       NotificationLog[]
+  auditLogs              AuditLog[]
+  loginHistory           LoginHistory[]
+  attendancePolicies     AttendancePolicy?
+  holidays               Holiday[]
+  correctionRequests     AttendanceCorrectionRequest[]
+  leaveRequests          LeaveRequest[]
+  appSettings            AppSettings?
   communicationTemplates CommunicationTemplate[]
-  parentProfiles   ParentProfile[]
-  parentStudentLinks ParentStudent[]
-  staffMembers     StaffProfile[]
+  parentProfiles         ParentProfile[]
+  parentStudentLinks     ParentStudent[]
+  staffMembers           StaffProfile[]
   staffAttendanceRecords StaffAttendanceRecord[]
-  staffLeaveRequests StaffLeaveRequest[]
-  examTimetables   ExamTimetable[]
-  classTimetables  ClassTimetable[]
-  notices          Notice[]
-  academicResources AcademicResource[]
-  labs             Lab[]
-  labTimetables    LabTimetable[]
-  behaviourRecords StudentBehaviourRecord[]
-  books            LibraryBook[]
-  bookIssues       LibraryBookIssue[]
-  labEquipment     LabEquipment[]
-  equipmentIssues  LabEquipmentIssue[]
-  maintenanceRequests MaintenanceRequest[]
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  staffLeaveRequests     StaffLeaveRequest[]
+  examTimetables         ExamTimetable[]
+  classTimetables        ClassTimetable[]
+  notices                Notice[]
+  academicResources      AcademicResource[]
+  labs                   Lab[]
+  labTimetables          LabTimetable[]
+  behaviourRecords       StudentBehaviourRecord[]
+  books                  LibraryBook[]
+  bookIssues             LibraryBookIssue[]
+  labEquipment           LabEquipment[]
+  equipmentIssues        LabEquipmentIssue[]
+  maintenanceRequests    MaintenanceRequest[]
+  createdAt              DateTime                      @default(now())
+  updatedAt              DateTime                      @updatedAt
 
   @@index([name])
   @@index([isActive])
 }
 
 model User {
-  id                  String               @id @default(cuid())
-  institutionId       String?
-  institution         Institution?         @relation(fields: [institutionId], references: [id], onDelete: SetNull)
-  name                String
-  email               String               @unique
-  passwordHash        String
-  role                Role
-  isActive            Boolean              @default(true)
-  lastLoginAt         DateTime?
-  refreshTokens       RefreshToken[]
-  passwordResetTokens PasswordResetToken[]
-  professorProfile    ProfessorProfile?
-  professorAssignments ProfessorSubjectAssignment[]
-  attendanceSessions  AttendanceSession[]  @relation("SessionProfessor")
-  auditLogs           AuditLog[]           @relation("AuditActor")
-  loginHistory        LoginHistory[]
-  requestedCorrections AttendanceCorrectionRequest[] @relation("CorrectionRequester")
-  reviewedCorrections AttendanceCorrectionRequest[] @relation("CorrectionReviewer")
-  requestedLeaves     LeaveRequest[] @relation("LeaveRequester")
-  reviewedLeaves      LeaveRequest[] @relation("LeaveReviewer")
-  studentPortalProfile Student? @relation("StudentPortalUser")
-  parentProfile      ParentProfile?
-  staffProfile       StaffProfile?
-  invigilatedExams   ExamTimetable[] @relation("ExamInvigilator")
-  classTimetablesTaught ClassTimetable[]
-  behaviourRecordsCreated StudentBehaviourRecord[] @relation("BehaviourCreatedBy")
-  behaviourRecordsApproved StudentBehaviourRecord[] @relation("BehaviourApprovedBy")
-  libraryIssuedBooks LibraryBookIssue[] @relation("BookIssuedBy")
-  equipmentIssuedItems LabEquipmentIssue[] @relation("EquipmentIssuedBy")
-  maintenanceAssigned MaintenanceRequest[] @relation("MaintenanceAssignee")
-  maintenanceCreated MaintenanceRequest[] @relation("MaintenanceCreatedBy")
-  uploadedResources  AcademicResource[] @relation("ResourceUploader")
-  publishedNotices   Notice[] @relation("NoticePublisher")
-  staffAttendanceMarked StaffAttendanceRecord[] @relation("StaffAttendanceMarker")
-  requestedStaffLeaves StaffLeaveRequest[] @relation("StaffLeaveRequester")
-  reviewedStaffLeaves StaffLeaveRequest[] @relation("StaffLeaveReviewer")
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
+  id                       String                        @id @default(cuid())
+  institutionId            String?
+  institution              Institution?                  @relation(fields: [institutionId], references: [id], onDelete: SetNull)
+  name                     String
+  email                    String                        @unique
+  passwordHash             String
+  role                     Role
+  isActive                 Boolean                       @default(true)
+  lastLoginAt              DateTime?
+  refreshTokens            RefreshToken[]
+  passwordResetTokens      PasswordResetToken[]
+  professorProfile         ProfessorProfile?
+  professorAssignments     ProfessorSubjectAssignment[]
+  attendanceSessions       AttendanceSession[]           @relation("SessionProfessor")
+  auditLogs                AuditLog[]                    @relation("AuditActor")
+  loginHistory             LoginHistory[]
+  requestedCorrections     AttendanceCorrectionRequest[] @relation("CorrectionRequester")
+  reviewedCorrections      AttendanceCorrectionRequest[] @relation("CorrectionReviewer")
+  requestedLeaves          LeaveRequest[]                @relation("LeaveRequester")
+  reviewedLeaves           LeaveRequest[]                @relation("LeaveReviewer")
+  studentPortalProfile     Student?                      @relation("StudentPortalUser")
+  parentProfile            ParentProfile?
+  staffProfile             StaffProfile?
+  invigilatedExams         ExamTimetable[]               @relation("ExamInvigilator")
+  classTimetablesTaught    ClassTimetable[]
+  behaviourRecordsCreated  StudentBehaviourRecord[]      @relation("BehaviourCreatedBy")
+  behaviourRecordsApproved StudentBehaviourRecord[]      @relation("BehaviourApprovedBy")
+  libraryIssuedBooks       LibraryBookIssue[]            @relation("BookIssuedBy")
+  equipmentIssuedItems     LabEquipmentIssue[]           @relation("EquipmentIssuedBy")
+  maintenanceAssigned      MaintenanceRequest[]          @relation("MaintenanceAssignee")
+  maintenanceCreated       MaintenanceRequest[]          @relation("MaintenanceCreatedBy")
+  uploadedResources        AcademicResource[]            @relation("ResourceUploader")
+  publishedNotices         Notice[]                      @relation("NoticePublisher")
+  staffAttendanceMarked    StaffAttendanceRecord[]       @relation("StaffAttendanceMarker")
+  requestedStaffLeaves     StaffLeaveRequest[]           @relation("StaffLeaveRequester")
+  reviewedStaffLeaves      StaffLeaveRequest[]           @relation("StaffLeaveReviewer")
+  createdAt                DateTime                      @default(now())
+  updatedAt                DateTime                      @updatedAt
 
   @@index([institutionId, role])
   @@index([isActive])
 }
 
 model RefreshToken {
-  id         String    @id @default(cuid())
-  userId     String
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash  String    @unique
-  expiresAt  DateTime
-  revokedAt  DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@index([userId])
   @@index([expiresAt])
 }
 
 model PasswordResetToken {
-  id         String    @id @default(cuid())
-  userId     String
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash  String    @unique
-  expiresAt  DateTime
-  usedAt     DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@index([userId])
   @@index([expiresAt])
 }
 
 model ProfessorProfile {
-  id            String      @id @default(cuid())
+  id            String                       @id @default(cuid())
   institutionId String
-  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  userId        String      @unique
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institution   Institution                  @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  userId        String                       @unique
+  user          User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
   employeeCode  String
   department    String?
   designation   String?
   phone         String?
   subjects      ProfessorSubjectAssignment[]
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  createdAt     DateTime                     @default(now())
+  updatedAt     DateTime                     @updatedAt
 
   @@unique([institutionId, employeeCode])
   @@index([institutionId])
 }
 
 model Student {
-  id                  String             @id @default(cuid())
-  institutionId       String
-  institution         Institution        @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  courseId            String
-  course              Course             @relation(fields: [courseId], references: [id], onDelete: Restrict)
-  sectionId           String
-  section             Section            @relation(fields: [sectionId], references: [id], onDelete: Restrict)
-  rollNumber          String
-  name                String
-  email               String?
-  phone               String?
-  parentName          String?
-  parentEmail         String?
-  parentPhone         String?
-  portalUserId        String?             @unique
-  portalUser          User?               @relation("StudentPortalUser", fields: [portalUserId], references: [id], onDelete: SetNull)
-  parentMappings      ParentStudent[]
-  isActive            Boolean            @default(true)
-  attendanceRecords   AttendanceRecord[]
-  leaveRequests       LeaveRequest[]
-  correctionRequests  AttendanceCorrectionRequest[]
-  behaviourRecords    StudentBehaviourRecord[]
-  bookIssues           LibraryBookIssue[]
-  equipmentIssues      LabEquipmentIssue[]
-  notificationLogs    NotificationLog[]
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
+  id                 String                        @id @default(cuid())
+  institutionId      String
+  institution        Institution                   @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  courseId           String
+  course             Course                        @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  sectionId          String
+  section            Section                       @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  rollNumber         String
+  name               String
+  email              String?
+  phone              String?
+  parentName         String?
+  parentEmail        String?
+  parentPhone        String?
+  portalUserId       String?                       @unique
+  portalUser         User?                         @relation("StudentPortalUser", fields: [portalUserId], references: [id], onDelete: SetNull)
+  parentMappings     ParentStudent[]
+  isActive           Boolean                       @default(true)
+  attendanceRecords  AttendanceRecord[]
+  leaveRequests      LeaveRequest[]
+  correctionRequests AttendanceCorrectionRequest[]
+  behaviourRecords   StudentBehaviourRecord[]
+  bookIssues         LibraryBookIssue[]
+  equipmentIssues    LabEquipmentIssue[]
+  notificationLogs   NotificationLog[]
+  createdAt          DateTime                      @default(now())
+  updatedAt          DateTime                      @updatedAt
 
   @@unique([institutionId, courseId, sectionId, rollNumber])
   @@index([institutionId, name])
@@ -288,52 +287,52 @@ model Student {
 }
 
 model Course {
-  id                 String              @id @default(cuid())
-  institutionId      String
-  institution        Institution         @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  name               String
-  code               String
-  description        String?
-  isActive           Boolean             @default(true)
-  semesters          Semester[]
-  sections           Section[]
-  students           Student[]
-  subjects           Subject[]
+  id                   String                       @id @default(cuid())
+  institutionId        String
+  institution          Institution                  @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  name                 String
+  code                 String
+  description          String?
+  isActive             Boolean                      @default(true)
+  semesters            Semester[]
+  sections             Section[]
+  students             Student[]
+  subjects             Subject[]
   professorAssignments ProfessorSubjectAssignment[]
-  attendanceSessions AttendanceSession[]
-  examTimetables     ExamTimetable[]
-  classTimetables    ClassTimetable[]
-  academicResources  AcademicResource[]
-  libraryBooks       LibraryBook[]
-  labTimetables      LabTimetable[]
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  attendanceSessions   AttendanceSession[]
+  examTimetables       ExamTimetable[]
+  classTimetables      ClassTimetable[]
+  academicResources    AcademicResource[]
+  libraryBooks         LibraryBook[]
+  labTimetables        LabTimetable[]
+  createdAt            DateTime                     @default(now())
+  updatedAt            DateTime                     @updatedAt
 
   @@unique([institutionId, code])
   @@index([institutionId, name])
 }
 
 model Subject {
-  id                 String              @id @default(cuid())
-  institutionId      String
-  institution        Institution         @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  courseId           String
-  course             Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  semesterId         String?
-  semester           Semester?           @relation(fields: [semesterId], references: [id], onDelete: SetNull)
-  name               String
-  code               String
-  credits            Int?
-  isActive           Boolean             @default(true)
+  id                   String                       @id @default(cuid())
+  institutionId        String
+  institution          Institution                  @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  courseId             String
+  course               Course                       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  semesterId           String?
+  semester             Semester?                    @relation(fields: [semesterId], references: [id], onDelete: SetNull)
+  name                 String
+  code                 String
+  credits              Int?
+  isActive             Boolean                      @default(true)
   professorAssignments ProfessorSubjectAssignment[]
-  attendanceSessions AttendanceSession[]
-  examTimetables     ExamTimetable[]
-  classTimetables    ClassTimetable[]
-  academicResources  AcademicResource[]
-  libraryBooks       LibraryBook[]
-  labTimetables      LabTimetable[]
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  attendanceSessions   AttendanceSession[]
+  examTimetables       ExamTimetable[]
+  classTimetables      ClassTimetable[]
+  academicResources    AcademicResource[]
+  libraryBooks         LibraryBook[]
+  labTimetables        LabTimetable[]
+  createdAt            DateTime                     @default(now())
+  updatedAt            DateTime                     @updatedAt
 
   @@unique([institutionId, courseId, code])
   @@index([institutionId, name])
@@ -341,68 +340,68 @@ model Subject {
 }
 
 model Semester {
-  id                 String              @id @default(cuid())
-  institutionId      String
-  institution        Institution         @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  courseId           String
-  course             Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  name               String
-  number             Int
-  isActive           Boolean             @default(true)
-  subjects           Subject[]
-  sections           Section[]
+  id                   String                       @id @default(cuid())
+  institutionId        String
+  institution          Institution                  @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  courseId             String
+  course               Course                       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  name                 String
+  number               Int
+  isActive             Boolean                      @default(true)
+  subjects             Subject[]
+  sections             Section[]
   professorAssignments ProfessorSubjectAssignment[]
-  attendanceSessions AttendanceSession[]
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  attendanceSessions   AttendanceSession[]
+  createdAt            DateTime                     @default(now())
+  updatedAt            DateTime                     @updatedAt
 
   @@unique([courseId, number])
   @@index([institutionId])
 }
 
 model Section {
-  id                 String              @id @default(cuid())
-  institutionId      String
-  institution        Institution         @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  courseId           String
-  course             Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  semesterId         String?
-  semester           Semester?           @relation(fields: [semesterId], references: [id], onDelete: SetNull)
-  name               String
-  code               String?
-  capacity           Int?
-  isActive           Boolean             @default(true)
-  students           Student[]
+  id                   String                       @id @default(cuid())
+  institutionId        String
+  institution          Institution                  @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  courseId             String
+  course               Course                       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  semesterId           String?
+  semester             Semester?                    @relation(fields: [semesterId], references: [id], onDelete: SetNull)
+  name                 String
+  code                 String?
+  capacity             Int?
+  isActive             Boolean                      @default(true)
+  students             Student[]
   professorAssignments ProfessorSubjectAssignment[]
-  attendanceSessions AttendanceSession[]
-  examTimetables     ExamTimetable[]
-  classTimetables    ClassTimetable[]
-  academicResources  AcademicResource[]
-  labTimetables      LabTimetable[]
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  attendanceSessions   AttendanceSession[]
+  examTimetables       ExamTimetable[]
+  classTimetables      ClassTimetable[]
+  academicResources    AcademicResource[]
+  labTimetables        LabTimetable[]
+  createdAt            DateTime                     @default(now())
+  updatedAt            DateTime                     @updatedAt
 
   @@unique([courseId, semesterId, name])
   @@index([institutionId])
 }
 
 model ProfessorSubjectAssignment {
-  id                 String           @id @default(cuid())
+  id                 String            @id @default(cuid())
   professorId        String
-  professor          User             @relation(fields: [professorId], references: [id], onDelete: Cascade)
+  professor          User              @relation(fields: [professorId], references: [id], onDelete: Cascade)
   professorProfileId String?
   professorProfile   ProfessorProfile? @relation(fields: [professorProfileId], references: [id], onDelete: SetNull)
   courseId           String
-  course             Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  course             Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
   subjectId          String
-  subject            Subject          @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  subject            Subject           @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   semesterId         String?
-  semester           Semester?        @relation(fields: [semesterId], references: [id], onDelete: SetNull)
+  semester           Semester?         @relation(fields: [semesterId], references: [id], onDelete: SetNull)
   sectionId          String?
-  section            Section?         @relation(fields: [sectionId], references: [id], onDelete: SetNull)
-  isActive           Boolean          @default(true)
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
+  section            Section?          @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  isActive           Boolean           @default(true)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
 
   @@unique([professorId, courseId, subjectId, semesterId, sectionId])
   @@index([professorId, isActive])
@@ -410,49 +409,49 @@ model ProfessorSubjectAssignment {
 }
 
 model AttendanceSession {
-  id              String             @id @default(cuid())
-  institutionId   String
-  institution     Institution        @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  courseId        String
-  course          Course             @relation(fields: [courseId], references: [id], onDelete: Restrict)
-  subjectId       String
-  subject         Subject            @relation(fields: [subjectId], references: [id], onDelete: Restrict)
-  semesterId      String?
-  semester        Semester?          @relation(fields: [semesterId], references: [id], onDelete: SetNull)
-  sectionId       String?
-  section         Section?           @relation(fields: [sectionId], references: [id], onDelete: SetNull)
-  professorId     String
-  professor       User               @relation("SessionProfessor", fields: [professorId], references: [id], onDelete: Restrict)
-  sessionDate     DateTime
-  period          String             @default("Session 1")
-  topic           String?
-  notes           String?
-  isLocked        Boolean            @default(false)
-  lockedAt        DateTime?
-  records         AttendanceRecord[]
+  id                 String                        @id @default(cuid())
+  institutionId      String
+  institution        Institution                   @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  courseId           String
+  course             Course                        @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  subjectId          String
+  subject            Subject                       @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  semesterId         String?
+  semester           Semester?                     @relation(fields: [semesterId], references: [id], onDelete: SetNull)
+  sectionId          String?
+  section            Section?                      @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  professorId        String
+  professor          User                          @relation("SessionProfessor", fields: [professorId], references: [id], onDelete: Restrict)
+  sessionDate        DateTime
+  period             String                        @default("Session 1")
+  topic              String?
+  notes              String?
+  isLocked           Boolean                       @default(false)
+  lockedAt           DateTime?
+  records            AttendanceRecord[]
   correctionRequests AttendanceCorrectionRequest[]
-  notificationLogs NotificationLog[]
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  notificationLogs   NotificationLog[]
+  createdAt          DateTime                      @default(now())
+  updatedAt          DateTime                      @updatedAt
 
+  @@unique([professorId, courseId, sectionId, subjectId, sessionDate, period])
   @@index([institutionId, sessionDate])
   @@index([courseId, subjectId])
   @@index([courseId, sectionId, subjectId, sessionDate, period])
-  @@unique([professorId, courseId, sectionId, subjectId, sessionDate, period])
   @@index([professorId, sessionDate])
 }
 
 model AttendanceRecord {
-  id          String           @id @default(cuid())
-  sessionId   String
-  session     AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  studentId   String
-  student     Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  status      AttendanceStatus
-  remarks     String?
-  markedAt    DateTime         @default(now())
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id                 String                        @id @default(cuid())
+  sessionId          String
+  session            AttendanceSession             @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  studentId          String
+  student            Student                       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  status             AttendanceStatus
+  remarks            String?
+  markedAt           DateTime                      @default(now())
+  createdAt          DateTime                      @default(now())
+  updatedAt          DateTime                      @updatedAt
   correctionRequests AttendanceCorrectionRequest[]
 
   @@unique([sessionId, studentId])
@@ -461,26 +460,26 @@ model AttendanceRecord {
 }
 
 model NotificationLog {
-  id            String      @id @default(cuid())
-  institutionId String
-  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  studentId     String?
-  student       Student?    @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  id                  String             @id @default(cuid())
+  institutionId       String
+  institution         Institution        @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  studentId           String?
+  student             Student?           @relation(fields: [studentId], references: [id], onDelete: SetNull)
   attendanceSessionId String?
   attendanceSession   AttendanceSession? @relation(fields: [attendanceSessionId], references: [id], onDelete: SetNull)
-  channel       String
-  recipient     String
-  recipientType String?
-  type          String?
-  subject       String?
-  message       String
-  status        String
-  provider      String?
-  providerRef   String?
-  reason        String?
-  sentAt        DateTime?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  channel             String
+  recipient           String
+  recipientType       String?
+  type                String?
+  subject             String?
+  message             String
+  status              String
+  provider            String?
+  providerRef         String?
+  reason              String?
+  sentAt              DateTime?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
 
   @@index([institutionId, createdAt])
   @@index([studentId])
@@ -490,37 +489,36 @@ model NotificationLog {
 }
 
 model AuditLog {
-  id            String      @id @default(cuid())
+  id            String       @id @default(cuid())
   institutionId String?
   institution   Institution? @relation(fields: [institutionId], references: [id], onDelete: SetNull)
   actorId       String?
-  actor         User?       @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actor         User?        @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
   action        String
   entityType    String
   entityId      String?
   metadata      Json?
   ipAddress     String?
   userAgent     String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
   @@index([institutionId, createdAt])
   @@index([actorId])
   @@index([entityType, entityId])
 }
 
-
 model LoginHistory {
-  id            String      @id @default(cuid())
+  id            String       @id @default(cuid())
   institutionId String?
   institution   Institution? @relation(fields: [institutionId], references: [id], onDelete: SetNull)
   userId        String?
-  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user          User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
   email         String
   success       Boolean
   ipAddress     String?
   userAgent     String?
-  createdAt     DateTime    @default(now())
+  createdAt     DateTime     @default(now())
 
   @@index([institutionId, createdAt])
   @@index([userId, createdAt])
@@ -529,14 +527,14 @@ model LoginHistory {
 }
 
 model AttendancePolicy {
-  id                    String      @id @default(cuid())
-  institutionId         String      @unique
-  institution           Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  lockAfterHours        Int         @default(24)
-  workingDays           Int[]       @default([1, 2, 3, 4, 5, 6])
-  adminOverrideEnabled  Boolean     @default(true)
-  createdAt             DateTime    @default(now())
-  updatedAt             DateTime    @updatedAt
+  id                   String      @id @default(cuid())
+  institutionId        String      @unique
+  institution          Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  lockAfterHours       Int         @default(24)
+  workingDays          Int[]       @default([1, 2, 3, 4, 5, 6])
+  adminOverrideEnabled Boolean     @default(true)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
 
   @@index([institutionId])
 }
@@ -558,27 +556,27 @@ model Holiday {
 }
 
 model AttendanceCorrectionRequest {
-  id                  String           @id @default(cuid())
-  institutionId       String
-  institution         Institution      @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  sessionId           String
-  session             AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  attendanceRecordId  String?
-  attendanceRecord    AttendanceRecord? @relation(fields: [attendanceRecordId], references: [id], onDelete: SetNull)
-  studentId           String?
-  student             Student?         @relation(fields: [studentId], references: [id], onDelete: SetNull)
-  requestedById       String
-  requestedBy         User             @relation("CorrectionRequester", fields: [requestedById], references: [id], onDelete: Cascade)
-  reviewedById        String?
-  reviewedBy          User?            @relation("CorrectionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
-  currentStatus       AttendanceStatus?
-  requestedStatus     AttendanceStatus?
-  reason              String
-  adminNote           String?
-  status              RequestStatus    @default(PENDING)
-  resolvedAt          DateTime?
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @updatedAt
+  id                 String            @id @default(cuid())
+  institutionId      String
+  institution        Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  sessionId          String
+  session            AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  attendanceRecordId String?
+  attendanceRecord   AttendanceRecord? @relation(fields: [attendanceRecordId], references: [id], onDelete: SetNull)
+  studentId          String?
+  student            Student?          @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  requestedById      String
+  requestedBy        User              @relation("CorrectionRequester", fields: [requestedById], references: [id], onDelete: Cascade)
+  reviewedById       String?
+  reviewedBy         User?             @relation("CorrectionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  currentStatus      AttendanceStatus?
+  requestedStatus    AttendanceStatus?
+  reason             String
+  adminNote          String?
+  status             RequestStatus     @default(PENDING)
+  resolvedAt         DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
 
   @@index([institutionId, status, createdAt])
   @@index([sessionId])
@@ -610,19 +608,18 @@ model LeaveRequest {
 }
 
 model AppSettings {
-  id                    String      @id @default(cuid())
-  institutionId         String      @unique
-  institution           Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  minimumAttendancePct  Int         @default(75)
-  timezone              String      @default("Asia/Kolkata")
-  notificationEnabled   Boolean     @default(true)
-  settings              Json?
-  createdAt             DateTime    @default(now())
-  updatedAt             DateTime    @updatedAt
+  id                   String      @id @default(cuid())
+  institutionId        String      @unique
+  institution          Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  minimumAttendancePct Int         @default(75)
+  timezone             String      @default("Asia/Kolkata")
+  notificationEnabled  Boolean     @default(true)
+  settings             Json?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
 
   @@index([institutionId])
 }
-
 
 model CommunicationTemplate {
   id            String      @id @default(cuid())
@@ -640,7 +637,6 @@ model CommunicationTemplate {
   @@unique([institutionId, key, channel])
   @@index([institutionId, channel, isActive])
 }
-
 
 model ParentProfile {
   id            String          @id @default(cuid())
@@ -671,25 +667,26 @@ model ParentStudent {
   @@index([studentId])
 }
 
-
 model StaffProfile {
-  id            String      @id @default(cuid())
-  institutionId String
-  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  userId        String      @unique
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  employeeCode  String
-  staffRole     String
-  department    String?
-  designation   String?
-  phone         String?
-  isActive      Boolean     @default(true)
+  id                String                  @id @default(cuid())
+  institutionId     String
+  institution       Institution             @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  userId            String                  @unique
+  user              User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  employeeCode      String
+  staffRole         String
+  department        String?
+  designation       String?
+  phone             String?
+  isActive          Boolean                 @default(true)
   attendanceRecords StaffAttendanceRecord[]
-  leaveRequests StaffLeaveRequest[]
-  bookIssues LibraryBookIssue[]
-  equipmentIssues LabEquipmentIssue[]
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  leaveRequests     StaffLeaveRequest[]
+  bookIssues        LibraryBookIssue[]
+  equipmentIssues   LabEquipmentIssue[]
+  labsInCharge      Lab[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([institutionId, employeeCode])
   @@index([institutionId, staffRole, isActive])
@@ -697,18 +694,18 @@ model StaffProfile {
 }
 
 model StaffAttendanceRecord {
-  id            String      @id @default(cuid())
-  institutionId String
-  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  staffId       String
-  staff         StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  markedById    String
-  markedBy      User        @relation("StaffAttendanceMarker", fields: [markedById], references: [id], onDelete: Restrict)
+  id             String       @id @default(cuid())
+  institutionId  String
+  institution    Institution  @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  staffId        String
+  staff          StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  markedById     String
+  markedBy       User         @relation("StaffAttendanceMarker", fields: [markedById], references: [id], onDelete: Restrict)
   attendanceDate DateTime
-  status        String
-  remarks       String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  status         String
+  remarks        String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   @@unique([staffId, attendanceDate])
   @@index([institutionId, attendanceDate])
@@ -738,7 +735,6 @@ model StaffLeaveRequest {
   @@index([institutionId, status, createdAt])
   @@index([staffId, fromDate, toDate])
 }
-
 
 model ExamTimetable {
   id            String      @id @default(cuid())
@@ -844,20 +840,20 @@ model AcademicResource {
 }
 
 model Lab {
-  id            String      @id @default(cuid())
+  id            String         @id @default(cuid())
   institutionId String
-  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  institution   Institution    @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   name          String
   code          String
   location      String?
   capacity      Int?
   inChargeId    String?
-  inCharge      StaffProfile? @relation(fields: [inChargeId], references: [id], onDelete: SetNull)
-  isActive      Boolean     @default(true)
+  inCharge      StaffProfile?  @relation(fields: [inChargeId], references: [id], onDelete: SetNull)
+  isActive      Boolean        @default(true)
   timetables    LabTimetable[]
   equipment     LabEquipment[]
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   @@unique([institutionId, code])
   @@index([institutionId, isActive])
@@ -887,33 +883,32 @@ model LabTimetable {
   @@index([courseId, sectionId])
 }
 
-
 model StudentBehaviourRecord {
-  id                 String             @id @default(cuid())
-  institutionId      String
-  institution        Institution        @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  studentId          String
-  student            Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  createdById        String
-  createdBy          User               @relation("BehaviourCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-  approvedById       String?
-  approvedBy         User?              @relation("BehaviourApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
-  recordType         BehaviourRecordType
-  tone               BehaviourTone      @default(NEUTRAL)
-  title              String
-  description        String
-  category           String?
-  severity           DisciplineSeverity?
-  actionTaken        String?
-  awardName          String?
-  achievement        String?
-  eventDate          DateTime
-  isApproved         Boolean            @default(false)
-  isAdminOnly        Boolean            @default(false)
-  parentNotificationRequired Boolean    @default(false)
-  parentNotifiedAt   DateTime?
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  id                         String              @id @default(cuid())
+  institutionId              String
+  institution                Institution         @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  studentId                  String
+  student                    Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdById                String
+  createdBy                  User                @relation("BehaviourCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  approvedById               String?
+  approvedBy                 User?               @relation("BehaviourApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  recordType                 BehaviourRecordType
+  tone                       BehaviourTone       @default(NEUTRAL)
+  title                      String
+  description                String
+  category                   String?
+  severity                   DisciplineSeverity?
+  actionTaken                String?
+  awardName                  String?
+  achievement                String?
+  eventDate                  DateTime
+  isApproved                 Boolean             @default(false)
+  isAdminOnly                Boolean             @default(false)
+  parentNotificationRequired Boolean             @default(false)
+  parentNotifiedAt           DateTime?
+  createdAt                  DateTime            @default(now())
+  updatedAt                  DateTime            @updatedAt
 
   @@index([institutionId, recordType, eventDate])
   @@index([studentId, eventDate])
@@ -923,27 +918,26 @@ model StudentBehaviourRecord {
   @@index([parentNotificationRequired, parentNotifiedAt])
 }
 
-
 model LibraryBook {
-  id              String      @id @default(cuid())
-  institutionId   String
-  institution     Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  courseId        String?
-  course          Course?     @relation(fields: [courseId], references: [id], onDelete: SetNull)
-  subjectId       String?
-  subject         Subject?    @relation(fields: [subjectId], references: [id], onDelete: SetNull)
-  title           String
-  category        String
-  author          String?
-  publisher       String?
-  isbn            String?
-  accessionNumber String
-  totalQuantity   Int         @default(1)
-  availableQuantity Int       @default(1)
-  isActive        Boolean     @default(true)
-  issues          LibraryBookIssue[]
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id                String             @id @default(cuid())
+  institutionId     String
+  institution       Institution        @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  courseId          String?
+  course            Course?            @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  subjectId         String?
+  subject           Subject?           @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  title             String
+  category          String
+  author            String?
+  publisher         String?
+  isbn              String?
+  accessionNumber   String
+  totalQuantity     Int                @default(1)
+  availableQuantity Int                @default(1)
+  isActive          Boolean            @default(true)
+  issues            LibraryBookIssue[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   @@unique([institutionId, accessionNumber])
   @@index([institutionId, category, isActive])
@@ -953,26 +947,26 @@ model LibraryBook {
 }
 
 model LibraryBookIssue {
-  id            String      @id @default(cuid())
+  id            String                 @id @default(cuid())
   institutionId String
-  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  institution   Institution            @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   bookId        String
-  book          LibraryBook @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  book          LibraryBook            @relation(fields: [bookId], references: [id], onDelete: Cascade)
   targetType    LibraryIssueTargetType
   studentId     String?
-  student       Student?    @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  student       Student?               @relation(fields: [studentId], references: [id], onDelete: SetNull)
   staffId       String?
-  staff         StaffProfile? @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  staff         StaffProfile?          @relation(fields: [staffId], references: [id], onDelete: SetNull)
   issuedById    String
-  issuedBy      User        @relation("BookIssuedBy", fields: [issuedById], references: [id], onDelete: Restrict)
-  issueDate     DateTime    @default(now())
+  issuedBy      User                   @relation("BookIssuedBy", fields: [issuedById], references: [id], onDelete: Restrict)
+  issueDate     DateTime               @default(now())
   dueDate       DateTime
   returnDate    DateTime?
-  status        LibraryIssueStatus @default(ISSUED)
-  fineAmount    Decimal?    @db.Decimal(10, 2)
+  status        LibraryIssueStatus     @default(ISSUED)
+  fineAmount    Decimal?               @db.Decimal(10, 2)
   remarks       String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
 
   @@index([institutionId, status, dueDate])
   @@index([bookId, status])
@@ -981,23 +975,23 @@ model LibraryBookIssue {
 }
 
 model LabEquipment {
-  id            String      @id @default(cuid())
-  institutionId String
-  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  labId         String?
-  lab           Lab?        @relation(fields: [labId], references: [id], onDelete: SetNull)
-  name          String
-  category      String
-  assetCode     String
-  quantity      Int         @default(1)
-  availableQuantity Int     @default(1)
-  condition     EquipmentCondition @default(GOOD)
-  remarks       String?
-  isActive      Boolean     @default(true)
-  issues        LabEquipmentIssue[]
+  id                  String               @id @default(cuid())
+  institutionId       String
+  institution         Institution          @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  labId               String?
+  lab                 Lab?                 @relation(fields: [labId], references: [id], onDelete: SetNull)
+  name                String
+  category            String
+  assetCode           String
+  quantity            Int                  @default(1)
+  availableQuantity   Int                  @default(1)
+  condition           EquipmentCondition   @default(GOOD)
+  remarks             String?
+  isActive            Boolean              @default(true)
+  issues              LabEquipmentIssue[]
   maintenanceRequests MaintenanceRequest[]
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
 
   @@unique([institutionId, assetCode])
   @@index([institutionId, category, condition])
@@ -1006,29 +1000,29 @@ model LabEquipment {
 }
 
 model LabEquipmentIssue {
-  id            String      @id @default(cuid())
-  institutionId String
-  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  equipmentId   String
-  equipment     LabEquipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
-  targetType    EquipmentIssueTargetType
-  studentId     String?
-  student       Student?    @relation(fields: [studentId], references: [id], onDelete: SetNull)
-  staffId       String?
-  staff         StaffProfile? @relation(fields: [staffId], references: [id], onDelete: SetNull)
-  courseId      String?
-  sectionId     String?
-  issuedById    String
-  issuedBy      User        @relation("EquipmentIssuedBy", fields: [issuedById], references: [id], onDelete: Restrict)
-  issueDate     DateTime    @default(now())
-  dueDate       DateTime?
-  returnDate    DateTime?
-  quantity      Int         @default(1)
-  status        EquipmentIssueStatus @default(ISSUED)
-  damageRemarks String?
+  id                  String                   @id @default(cuid())
+  institutionId       String
+  institution         Institution              @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  equipmentId         String
+  equipment           LabEquipment             @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  targetType          EquipmentIssueTargetType
+  studentId           String?
+  student             Student?                 @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  staffId             String?
+  staff               StaffProfile?            @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  courseId            String?
+  sectionId           String?
+  issuedById          String
+  issuedBy            User                     @relation("EquipmentIssuedBy", fields: [issuedById], references: [id], onDelete: Restrict)
+  issueDate           DateTime                 @default(now())
+  dueDate             DateTime?
+  returnDate          DateTime?
+  quantity            Int                      @default(1)
+  status              EquipmentIssueStatus     @default(ISSUED)
+  damageRemarks       String?
   responsibilityNotes String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
 
   @@index([institutionId, status, dueDate])
   @@index([equipmentId, status])
@@ -1038,23 +1032,23 @@ model LabEquipmentIssue {
 }
 
 model MaintenanceRequest {
-  id            String      @id @default(cuid())
+  id            String            @id @default(cuid())
   institutionId String
-  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  institution   Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   equipmentId   String?
-  equipment     LabEquipment? @relation(fields: [equipmentId], references: [id], onDelete: SetNull)
+  equipment     LabEquipment?     @relation(fields: [equipmentId], references: [id], onDelete: SetNull)
   title         String
   description   String
   status        MaintenanceStatus @default(PENDING)
   assignedToId  String?
-  assignedTo    User?       @relation("MaintenanceAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  assignedTo    User?             @relation("MaintenanceAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
   createdById   String
-  createdBy     User        @relation("MaintenanceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-  cost          Decimal?    @db.Decimal(10, 2)
+  createdBy     User              @relation("MaintenanceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  cost          Decimal?          @db.Decimal(10, 2)
   resolvedAt    DateTime?
   remarks       String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
   @@index([institutionId, status, createdAt])
   @@index([equipmentId])
