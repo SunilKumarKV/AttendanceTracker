@@ -23,3 +23,6 @@ authRouter.post('/forgot-password', validateBody(forgotPasswordSchema), asyncHan
 authRouter.post('/reset-password', validateBody(resetPasswordSchema), asyncHandler(authController.resetPassword));
 authRouter.post('/logout', authenticate, validateBody(logoutSchema), asyncHandler(authController.logout));
 authRouter.post('/change-password', authenticate, validateBody(changePasswordSchema), asyncHandler(authController.changePassword));
+authRouter.get('/sessions', authenticate, asyncHandler(authController.sessions));
+authRouter.delete('/sessions/:id', authenticate, asyncHandler(authController.revokeSession));
+authRouter.delete('/sessions', authenticate, asyncHandler(authController.revokeOtherSessions));
