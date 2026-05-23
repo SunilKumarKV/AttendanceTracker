@@ -113,6 +113,12 @@ model Institution {
   subscriptionPlan       SubscriptionPlan              @default(FREE_TRIAL)
   subscriptionStatus     SubscriptionStatus            @default(TRIALING)
   trialEndsAt            DateTime?
+  billingEmail             String?
+razorpayCustomerId       String?
+razorpaySubscriptionId   String?
+currentPeriodStart       DateTime?
+currentPeriodEnd         DateTime?
+cancelAtPeriodEnd        Boolean                       @default(false)
   studentLimit           Int                           @default(100)
   teacherLimit           Int                           @default(10)
   staffLimit             Int                           @default(10)
@@ -128,6 +134,8 @@ model Institution {
   attendanceSessions     AttendanceSession[]
   notificationLogs       NotificationLog[]
   auditLogs              AuditLog[]
+  billingInvoices          BillingInvoice[]
+  billingEvents            BillingEvent[]
   loginHistory           LoginHistory[]
   attendancePolicies     AttendancePolicy?
   holidays               Holiday[]
@@ -204,23 +212,23 @@ model User {
 }
 
 model RefreshToken {
-  id        String    @id @default(cuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String    @unique
-  expiresAt DateTime
-  revokedAt DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  revokedAt   DateTime?
   ipAddress   String?
-userAgent   String?
-deviceLabel String?
-lastUsedAt  DateTime?
+  userAgent   String?
+  deviceLabel String?
+  lastUsedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([userId])
   @@index([expiresAt])
   @@index([revokedAt])
-@@index([lastUsedAt])
+  @@index([lastUsedAt])
 }
 
 model PasswordResetToken {
@@ -235,6 +243,45 @@ model PasswordResetToken {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+model BillingInvoice {
+  id              String       @id @default(cuid())
+  institutionId   String
+  institution     Institution  @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  provider        String       @default("razorpay")
+  providerInvoiceId String?    @unique
+  providerPaymentId String?
+  amount          Int
+  currency        String       @default("INR")
+  status          String
+  hostedUrl       String?
+  pdfUrl          String?
+  paidAt          DateTime?
+  dueAt           DateTime?
+  metadata        Json?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([institutionId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model BillingEvent {
+  id              String       @id @default(cuid())
+  institutionId   String?
+  institution     Institution? @relation(fields: [institutionId], references: [id], onDelete: SetNull)
+  provider        String       @default("razorpay")
+  eventType       String
+  providerEventId String?      @unique
+  payload         Json
+  processedAt     DateTime?
+  createdAt       DateTime     @default(now())
+
+  @@index([institutionId])
+  @@index([eventType])
+  @@index([createdAt])
 }
 
 model ProfessorProfile {
