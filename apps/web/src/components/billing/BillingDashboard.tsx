@@ -17,14 +17,21 @@ export const BillingDashboard: React.FC = () => {
   const [current, setCurrent] = useState<CurrentBilling | null>(null);
   const [loading, setLoading] = useState(true);
   const [checkoutPlan, setCheckoutPlan] = useState<string | null>(null);
+  const [invoices, setInvoices] = useState<BillingInvoice[]>([]);
+const [billingActionLoading, setBillingActionLoading] = useState(false);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       try {
-        const [plansResponse, currentResponse] = await Promise.all([getBillingPlans(), getCurrentBilling()]);
+        const [plansResponse, currentResponse] = await Promise.all([
+  getBillingPlans(),
+  getCurrentBilling(),
+  getBillingInvoices(),
+])
         setPlans(plansResponse.data);
         setCurrent(currentResponse.data);
+        setInvoices(invoicesResponse.data);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Unable to load billing data');
       } finally {
@@ -56,6 +63,27 @@ export const BillingDashboard: React.FC = () => {
       setCheckoutPlan(null);
     }
   };
+
+  const handleCancelSubscription = async () => {
+  if (!window.confirm('Cancel subscription at period end?')) return;
+
+  setBillingActionLoading(true);
+
+  try {
+    await cancelBillingSubscription();
+    toast.success('Subscription cancellation requested');
+    window.location.reload();
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : 'Unable to cancel');
+  } finally {
+    setBillingActionLoading(false);
+  }
+};
+
+const handleResumeSubscription = async () => {
+  toast.info('Please purchase again to resume subscription');
+};
+
   if (loading) {
     return (
       <div className="rounded-3xl border border-slate-100 bg-white p-8 text-center font-bold text-slate-500 dark:border-slate-800 dark:bg-slate-900">
@@ -71,6 +99,25 @@ export const BillingDashboard: React.FC = () => {
         <h1 className="text-3xl font-black text-slate-900 dark:text-white">Subscription & Billing</h1>
         <p className="mt-2 max-w-3xl text-sm font-medium text-slate-500 dark:text-slate-400">Review current subscription usage and compare upgrade plans.</p>
       </div>
+
+      <div className="flex gap-3 mt-4">
+  {current.institution.cancelAtPeriodEnd ? (
+    <button
+      onClick={handleResumeSubscription}
+      className="rounded-xl bg-emerald-600 px-4 py-2 text-white font-bold"
+    >
+      Resume
+    </button>
+  ) : (
+    <button
+      onClick={handleCancelSubscription}
+      disabled={billingActionLoading}
+      className="rounded-xl bg-red-600 px-4 py-2 text-white font-bold disabled:opacity-60"
+    >
+      Cancel Subscription
+    </button>
+  )}
+</div>
 
       {current && (
         <div className="grid gap-4 lg:grid-cols-4">
@@ -137,6 +184,50 @@ export const BillingDashboard: React.FC = () => {
           ))}
         </div>
       </section>
+      <section>
+  <h2 className="mb-4 text-2xl font-black">Billing History</h2>
+
+  <div className="overflow-x-auto rounded-3xl border border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-900">
+    <table className="w-full text-sm">
+      <thead>
+        <tr>
+          <th>Invoice</th>
+          <th>Amount</th>
+          <th>Status</th>
+          <th>Date</th>
+          <th>PDF</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {invoices.map((invoice) => (
+          <tr key={invoice.id}>
+            <td>{invoice.providerInvoiceId}</td>
+            <td>₹{(invoice.amount / 100).toLocaleString()}</td>
+            <td>{invoice.status}</td>
+            <td>
+              {invoice.paidAt
+                ? new Date(invoice.paidAt).toLocaleDateString()
+                : '-'}
+            </td>
+            <td>
+              {invoice.pdfUrl ? (
+                <a
+                  href={invoice.pdfUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-blue-600 font-bold"
+                >
+                  Download
+                </a>
+              ) : '-'}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</section>
     </div>
   );
 };
