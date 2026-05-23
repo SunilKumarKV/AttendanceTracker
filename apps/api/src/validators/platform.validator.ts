@@ -29,3 +29,8 @@ export const institutionAdminSchema = z.object({
   email: z.string().email().trim().toLowerCase(),
   password: z.string().min(8).max(128),
 });
+
+export const institutionAdminPasswordResetSchema = z.object({
+  email: z.string().email().trim().toLowerCase(),
+  password: z.string().min(12).max(128),
+});
