@@ -3,7 +3,7 @@ import { prisma } from '../config/prisma.js';
 interface AuditInput {
   actorId?: string;
   institutionId?: string | null;
-  action: AuditAction;
+  action: string;
   entityType: string;
   entityId?: string;
   metadata?: unknown;
@@ -11,22 +11,7 @@ interface AuditInput {
   userAgent?: string;
 }
 
-export type AuditAction =
-  | 'CREATE'
-  | 'UPDATE'
-  | 'DELETE'
-  | 'EXPORT'
-  | 'IMPORT'
-  | 'RESTORE'
-  | 'LOGIN'
-  | 'LOGOUT'
-  | 'LOGIN_FAILED'
-  | 'PASSWORD_RESET_REQUEST'
-  | 'PASSWORD_RESET'
-  | 'PASSWORD_CHANGE'
-  | 'APPROVE'
-  | 'REJECT'
-  | 'UPSERT';
+export type AuditAction = string;
 
 export const writeAuditLog = async ({
   actorId,

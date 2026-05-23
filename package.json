@@ -14,12 +14,13 @@
     "test": "turbo test",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
-    "prisma": "pnpm --filter @attendance/api prisma",
-    "prisma:generate": "pnpm --filter @attendance/api prisma:generate",
-    "prisma:validate": "pnpm --filter @attendance/api prisma:validate",
-    "prisma:migrate": "pnpm --filter @attendance/api prisma:migrate",
-    "prisma:seed": "pnpm --filter @attendance/api prisma:seed",
-    "clean": "rm -rf apps/web/dist apps/api/dist"
+    "prisma": "node scripts/prisma-cli.mjs",
+    "prisma:generate": "node scripts/prisma-cli.mjs generate",
+    "prisma:validate": "node scripts/prisma-cli.mjs validate",
+    "prisma:migrate": "node scripts/prisma-cli.mjs migrate dev",
+    "prisma:seed": "node scripts/prisma-cli.mjs db seed",
+    "clean": "rm -rf apps/web/dist apps/api/dist",
+    "prisma:db:seed": "node scripts/prisma-cli.mjs db seed"
   },
   "devDependencies": {
     "prettier": "^3.8.3",

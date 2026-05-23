@@ -139,14 +139,26 @@ ALTER TABLE "LibraryBook" ADD CONSTRAINT "LibraryBook_subjectId_fkey" FOREIGN KE
 ALTER TABLE "LibraryBookIssue" ADD CONSTRAINT "LibraryBookIssue_institutionId_fkey" FOREIGN KEY ("institutionId") REFERENCES "Institution"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "LibraryBookIssue" ADD CONSTRAINT "LibraryBookIssue_bookId_fkey" FOREIGN KEY ("bookId") REFERENCES "LibraryBook"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "LibraryBookIssue" ADD CONSTRAINT "LibraryBookIssue_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "LibraryBookIssue" ADD CONSTRAINT "LibraryBookIssue_staffId_fkey" FOREIGN KEY ("staffId") REFERENCES "StaffProfile"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF to_regclass('"StaffProfile"') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'LibraryBookIssue_staffId_fkey') THEN
+    ALTER TABLE "LibraryBookIssue" ADD CONSTRAINT "LibraryBookIssue_staffId_fkey" FOREIGN KEY ("staffId") REFERENCES "StaffProfile"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 ALTER TABLE "LibraryBookIssue" ADD CONSTRAINT "LibraryBookIssue_issuedById_fkey" FOREIGN KEY ("issuedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "LabEquipment" ADD CONSTRAINT "LabEquipment_institutionId_fkey" FOREIGN KEY ("institutionId") REFERENCES "Institution"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "LabEquipment" ADD CONSTRAINT "LabEquipment_labId_fkey" FOREIGN KEY ("labId") REFERENCES "Lab"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF to_regclass('"Lab"') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'LabEquipment_labId_fkey') THEN
+    ALTER TABLE "LabEquipment" ADD CONSTRAINT "LabEquipment_labId_fkey" FOREIGN KEY ("labId") REFERENCES "Lab"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 ALTER TABLE "LabEquipmentIssue" ADD CONSTRAINT "LabEquipmentIssue_institutionId_fkey" FOREIGN KEY ("institutionId") REFERENCES "Institution"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "LabEquipmentIssue" ADD CONSTRAINT "LabEquipmentIssue_equipmentId_fkey" FOREIGN KEY ("equipmentId") REFERENCES "LabEquipment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "LabEquipmentIssue" ADD CONSTRAINT "LabEquipmentIssue_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "LabEquipmentIssue" ADD CONSTRAINT "LabEquipmentIssue_staffId_fkey" FOREIGN KEY ("staffId") REFERENCES "StaffProfile"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF to_regclass('"StaffProfile"') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'LabEquipmentIssue_staffId_fkey') THEN
+    ALTER TABLE "LabEquipmentIssue" ADD CONSTRAINT "LabEquipmentIssue_staffId_fkey" FOREIGN KEY ("staffId") REFERENCES "StaffProfile"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 ALTER TABLE "LabEquipmentIssue" ADD CONSTRAINT "LabEquipmentIssue_issuedById_fkey" FOREIGN KEY ("issuedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "MaintenanceRequest" ADD CONSTRAINT "MaintenanceRequest_institutionId_fkey" FOREIGN KEY ("institutionId") REFERENCES "Institution"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "MaintenanceRequest" ADD CONSTRAINT "MaintenanceRequest_equipmentId_fkey" FOREIGN KEY ("equipmentId") REFERENCES "LabEquipment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
