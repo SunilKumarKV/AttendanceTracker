@@ -25,7 +25,11 @@ export class ApiClientError extends Error implements ApiError {
   }
 }
 
-const getBaseUrl = () => import.meta.env.VITE_API_BASE_URL ?? '';
+const getBaseUrl = () => {
+  const rawBaseUrl = String(import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
+  if (!rawBaseUrl) return '';
+  return rawBaseUrl.endsWith('/api') ? rawBaseUrl : `${rawBaseUrl}/api`;
+};
 
 let refreshPromise: Promise<string | null> | null = null;
 
