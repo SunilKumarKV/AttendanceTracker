@@ -14,9 +14,6 @@ importers:
       bcryptjs:
         specifier: ^3.0.3
         version: 3.0.3
-      dotenv:
-        specifier: ^16.5.0
-        version: 16.6.1
     devDependencies:
       prettier:
         specifier: ^3.8.3
