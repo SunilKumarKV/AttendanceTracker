@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Building2, Clipboard, Eye, EyeOff, Loader2, Plus, ShieldCheck, Sparkles, Users } from 'lucide-react';
+import { Building2, Clipboard, Eye, EyeOff, Loader2, Plus, Search, ShieldCheck, Sparkles, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { createInstitution, createInstitutionAdmin, getPlatformDashboard, Institution, InstitutionPayload, listInstitutions, updateInstitution, PlatformDashboardData, SubscriptionPlan, SubscriptionStatus } from '../api/platform';
-import { MainLayout } from './MainLayout';
 
 const emptyForm: InstitutionPayload = {
   name: '',
@@ -22,6 +21,8 @@ const emptyForm: InstitutionPayload = {
 
 const plans: SubscriptionPlan[] = ['FREE_TRIAL', 'BASIC', 'PRO', 'ENTERPRISE'];
 const statuses: SubscriptionStatus[] = ['TRIALING', 'ACTIVE', 'PAST_DUE', 'CANCELLED', 'EXPIRED'];
+
+type StatusFilter = 'ALL' | SubscriptionStatus | 'SUSPENDED';
 
 const planStyles: Record<SubscriptionPlan, string> = {
   FREE_TRIAL: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
@@ -54,8 +55,12 @@ export const PlatformDashboard: React.FC = () => {
   const [adminForm, setAdminForm] = useState({ institutionId: '', name: '', email: '', password: generateTemporaryPassword() });
   const [lastOnboarding, setLastOnboarding] = useState<{ institutionCode: string; email: string; password: string } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [planFilter, setPlanFilter] = useState<'ALL' | SubscriptionPlan>('ALL');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -73,6 +78,17 @@ export const PlatformDashboard: React.FC = () => {
   useEffect(() => { void load(); }, []);
 
   const selectedInstitution = useMemo(() => institutions.find((item) => item.id === adminForm.institutionId), [adminForm.institutionId, institutions]);
+
+  const filteredInstitutions = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return institutions.filter((institution) => {
+      const matchesSearch = !term || [institution.name, institution.code, institution.email ?? '', institution.contactPerson ?? ''].some((value) => value.toLowerCase().includes(term));
+      const matchesPlan = planFilter === 'ALL' || institution.subscriptionPlan === planFilter;
+      const matchesStatus = statusFilter === 'ALL'
+        || (statusFilter === 'SUSPENDED' ? !institution.isActive : institution.isActive && institution.subscriptionStatus === statusFilter);
+      return matchesSearch && matchesPlan && matchesStatus;
+    });
+  }, [institutions, planFilter, searchTerm, statusFilter]);
 
   const copyOnboarding = async () => {
     if (!lastOnboarding) return;
@@ -123,6 +139,23 @@ export const PlatformDashboard: React.FC = () => {
     });
   };
 
+  const toggleInstitutionStatus = async (institution: Institution) => {
+    const nextActive = !institution.isActive;
+    setUpdatingId(institution.id);
+    try {
+      await updateInstitution(institution.id, {
+        isActive: nextActive,
+        subscriptionStatus: nextActive ? 'ACTIVE' : 'CANCELLED',
+      });
+      toast.success(nextActive ? 'Institution activated' : 'Institution suspended');
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to update institution status');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   const submitAdmin = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!adminForm.institutionId) return toast.error('Select an institution first');
@@ -143,7 +176,6 @@ export const PlatformDashboard: React.FC = () => {
   };
 
   return (
-
       <div className="space-y-8">
         <div>
           <p className="text-sm font-black uppercase tracking-wider text-blue-600">Version 2.0 SaaS Platform</p>
@@ -222,19 +254,41 @@ export const PlatformDashboard: React.FC = () => {
         </div>
 
         <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="border-b border-slate-100 p-5 dark:border-slate-800"><h2 className="text-xl font-black">Institutions</h2></div>
+          <div className="border-b border-slate-100 p-5 dark:border-slate-800">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+              <div>
+                <h2 className="text-xl font-black">Institutions</h2>
+                <p className="text-sm font-bold text-slate-500">Showing {filteredInstitutions.length} of {institutions.length}</p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
+                <label className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search institution..." className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm font-bold dark:border-slate-700 dark:bg-slate-950" />
+                </label>
+                <select value={planFilter} onChange={(event) => setPlanFilter(event.target.value as 'ALL' | SubscriptionPlan)} className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold dark:border-slate-700 dark:bg-slate-950">
+                  <option value="ALL">All plans</option>
+                  {plans.map((plan) => <option key={plan} value={plan}>{plan}</option>)}
+                </select>
+                <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)} className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold dark:border-slate-700 dark:bg-slate-950">
+                  <option value="ALL">All statuses</option>
+                  {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
+                  <option value="SUSPENDED">SUSPENDED</option>
+                </select>
+              </div>
+            </div>
+          </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px] text-left text-sm">
+            <table className="w-full min-w-[1100px] text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase text-slate-500 dark:bg-slate-950"><tr><th className="p-4">Institution</th><th className="p-4">Plan</th><th className="p-4">Status</th><th className="p-4">Usage</th><th className="p-4">Limits</th><th className="p-4">Action</th></tr></thead>
               <tbody>
-                {institutions.map((item) => {
+                {filteredInstitutions.map((item) => {
                   const students = item._count?.students ?? 0;
                   const teachers = item._count?.professorProfiles ?? 0;
                   return (
                     <tr key={item.id} className="border-t border-slate-100 dark:border-slate-800">
                       <td className="p-4"><p className="font-black">{item.name}</p><p className="text-xs font-bold text-slate-500">{item.code} · {item.email || 'No email'}</p></td>
                       <td className="p-4"><span className={`rounded-full px-3 py-1 text-xs font-black ${planStyles[item.subscriptionPlan]}`}>{item.subscriptionPlan}</span></td>
-                      <td className="p-4"><span className={`rounded-full px-3 py-1 text-xs font-black ${item.isActive ? statusStyles[item.subscriptionStatus] : 'bg-red-50 text-red-700'}`}>{item.isActive ? item.subscriptionStatus : 'SUSPENDED'}</span></td>
+                      <td className="p-4"><span className={`rounded-full px-3 py-1 text-xs font-black ${item.isActive ? statusStyles[item.subscriptionStatus] : 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'}`}>{item.isActive ? item.subscriptionStatus : 'SUSPENDED'}</span></td>
                       <td className="p-4 text-xs font-bold text-slate-500">
                         <div className="space-y-2">
                           <div><div className="mb-1 flex justify-between"><span>Students</span><span>{students}/{item.studentLimit}</span></div><div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-2 rounded-full bg-blue-600" style={{ width: progressWidth(students, item.studentLimit) }} /></div></div>
@@ -243,10 +297,18 @@ export const PlatformDashboard: React.FC = () => {
                         </div>
                       </td>
                       <td className="p-4 text-xs font-bold text-slate-500">Students {item.studentLimit}<br />Teachers {item.teacherLimit}<br />Staff {item.staffLimit}</td>
-                      <td className="p-4"><button onClick={() => startEdit(item)} className="rounded-lg bg-slate-100 px-3 py-2 font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-200">Edit</button></td>
+                      <td className="p-4">
+                        <div className="flex flex-wrap gap-2">
+                          <button onClick={() => startEdit(item)} className="rounded-lg bg-slate-100 px-3 py-2 font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-200">Edit</button>
+                          <button disabled={updatingId === item.id} onClick={() => void toggleInstitutionStatus(item)} className={`rounded-lg px-3 py-2 font-bold disabled:opacity-60 ${item.isActive ? 'bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-950/40 dark:text-red-300' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300'}`}>{updatingId === item.id ? 'Updating...' : item.isActive ? 'Suspend' : 'Activate'}</button>
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
+                {filteredInstitutions.length === 0 && (
+                  <tr><td colSpan={6} className="p-8 text-center text-sm font-bold text-slate-500">No institutions match your filters.</td></tr>
+                )}
               </tbody>
             </table>
           </div>
