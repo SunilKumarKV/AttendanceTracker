@@ -1,7 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Check, Crown, Loader2, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
-import { getBillingPlans, getCurrentBilling, type BillingPlan, type CurrentBilling } from '../../api/billing';
+import {
+  createBillingCheckout,
+  getBillingPlans,
+  getCurrentBilling,
+  type BillingPlan,
+  type CurrentBilling,
+} from '../../api/billing';
 
 const formatPrice = (amount: number) => amount === 0 ? 'Custom / Trial' : new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount / 100);
 const usagePercent = (used: number, total: number) => total <= 0 ? 0 : Math.min(100, Math.round((used / total) * 100));
@@ -10,6 +16,7 @@ export const BillingDashboard: React.FC = () => {
   const [plans, setPlans] = useState<BillingPlan[]>([]);
   const [current, setCurrent] = useState<CurrentBilling | null>(null);
   const [loading, setLoading] = useState(true);
+  const [checkoutPlan, setCheckoutPlan] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -28,6 +35,27 @@ export const BillingDashboard: React.FC = () => {
   }, []);
 
   const currentPlan = useMemo(() => plans.find((plan) => plan.code === current?.institution.subscriptionPlan), [plans, current]);
+
+  const handleCheckout = async (plan: BillingPlan) => {
+    if (plan.code === 'FREE_TRIAL') {
+      toast.info('Free trial does not require checkout');
+      return;
+    }
+
+    setCheckoutPlan(plan.code);
+    try {
+      const response = await createBillingCheckout(plan.code, 'monthly');
+      if (response.data.shortUrl) {
+        window.location.href = response.data.shortUrl;
+        return;
+      }
+      toast.error('Checkout URL unavailable');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to start checkout');
+    } finally {
+      setCheckoutPlan(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -99,7 +127,13 @@ export const BillingDashboard: React.FC = () => {
                   </div>
                 ))}
               </div>
-              <button className="mt-6 w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-black text-white dark:bg-white dark:text-slate-900">Upgrade (coming soon)</button>
+              <button
+                onClick={() => void handleCheckout(plan)}
+                disabled={checkoutPlan === plan.code}
+                className="mt-6 w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-black text-white disabled:opacity-60 dark:bg-white dark:text-slate-900"
+              >
+                {checkoutPlan === plan.code ? 'Starting checkout...' : plan.code === 'FREE_TRIAL' ? 'Current Trial' : 'Upgrade Now'}
+              </button>
             </div>
           ))}
         </div>
