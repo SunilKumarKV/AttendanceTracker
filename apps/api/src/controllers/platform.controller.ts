@@ -29,6 +29,8 @@ export const createInstitutionAdmin = async (request: Request, response: Respons
 };
 
 export const usage = async (request: Request, response: Response) => {
-  const institutionId = request.auth?.role === 'SUPER_ADMIN' ? request.params.id : request.auth?.institutionId;
+  const institutionId = request.auth?.role === 'SUPER_ADMIN'
+    ? request.params.id ?? request.auth?.institutionId
+    : request.auth?.institutionId;
   response.status(StatusCodes.OK).json({ success: true, data: await platformService.getInstitutionUsage(institutionId ?? '') });
 };
