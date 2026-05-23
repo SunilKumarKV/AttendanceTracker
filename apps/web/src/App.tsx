@@ -33,6 +33,11 @@ const BehaviourRecords = lazy(() => import('./components/BehaviourRecords').then
 const LibraryLabManagement = lazy(() => import('./components/LibraryLabManagement').then((module) => ({ default: module.LibraryLabManagement })));
 const AnalyticsDashboard = lazy(() => import('./components/AnalyticsDashboard').then((module) => ({ default: module.AnalyticsDashboard })));
 const PlatformDashboard = lazy(() => import('./components/PlatformDashboard').then((module) => ({ default: module.PlatformDashboard })));
+const PlatformAuditLogs = lazy(() =>
+  import('./components/platform/PlatformAuditLogs').then((module) => ({
+    default: module.PlatformAuditLogs,
+  }))
+);
 
 const StudentDashboard = lazy(() => import('./components/StudentDashboard').then((module) => ({ default: module.StudentDashboard })));
 const StudentProfile = lazy(() => import('./components/StudentProfile').then((module) => ({ default: module.StudentProfile })));
@@ -90,6 +95,15 @@ export default function App() {
               </RoleRoute>
             }
           />
+
+          <Route
+  path="/platform/audit-logs"
+  element={
+    <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+      <PlatformAuditLogs />
+    </RoleRoute>
+  }
+/>
 
           <Route
             path="/dashboard"

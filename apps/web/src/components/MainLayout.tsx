@@ -51,7 +51,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
   const superAdminItems: SidebarItem[] = [
     { label: 'Platform', path: '/platform', icon: Building2 },
     { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { label: 'Security Logs', path: '/audit-logs', icon: ShieldCheck },
+    { label: 'Security Logs', path: '/platform/audit-logs', icon: ShieldCheck },
     { label: 'Settings', path: '/settings', icon: Settings },
   ];
 
