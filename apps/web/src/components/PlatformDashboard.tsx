@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { forgotPasswordRequest } from '../api/auth';
 import { createInstitution, createInstitutionAdmin, getPlatformDashboard, Institution, InstitutionPayload, listInstitutions, updateInstitution, PlatformDashboardData, SubscriptionPlan } from '../api/platform';
 import { InstitutionAdminForm } from './platform/InstitutionAdminForm';
+import { InstitutionDetailsModal } from './platform/InstitutionDetailsModal';
 import { InstitutionForm } from './platform/InstitutionForm';
 import { InstitutionTable } from './platform/InstitutionTable';
 import { PlatformStatsCards } from './platform/PlatformStatsCards';
@@ -15,6 +16,7 @@ export const PlatformDashboard: React.FC = () => {
   const [form, setForm] = useState<InstitutionPayload>(emptyInstitutionForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [adminForm, setAdminForm] = useState({ institutionId: '', name: '', email: '', password: generateTemporaryPassword() });
+  const [detailsInstitution, setDetailsInstitution] = useState<Institution | null>(null);
   const [resetEmailByInstitution, setResetEmailByInstitution] = useState<Record<string, string>>({});
   const [lastOnboarding, setLastOnboarding] = useState<{ institutionCode: string; email: string; password: string } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -216,9 +218,12 @@ export const PlatformDashboard: React.FC = () => {
         onStatusFilterChange={setStatusFilter}
         onResetEmailChange={(institutionId, email) => setResetEmailByInstitution((current) => ({ ...current, [institutionId]: email }))}
         onSendResetLink={(institution) => void sendResetLink(institution)}
+        onView={setDetailsInstitution}
         onEdit={startEdit}
         onToggleStatus={(institution) => void toggleInstitutionStatus(institution)}
       />
+
+      <InstitutionDetailsModal institution={detailsInstitution} onClose={() => setDetailsInstitution(null)} />
     </div>
   );
 };
