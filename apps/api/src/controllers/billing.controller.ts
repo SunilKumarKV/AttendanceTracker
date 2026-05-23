@@ -30,7 +30,11 @@ export const checkout = async (request: Request, response: Response) => {
 };
 
 export const webhook = async (request: Request, response: Response) => {
-  const rawBody = Buffer.isBuffer(request.body) ? request.body.toString('utf8') : JSON.stringify(request.body ?? {});
+  if (!Buffer.isBuffer(request.body)) {
+    throw new Error('Webhook route requires raw body middleware');
+  }
+
+  const rawBody = request.body.toString('utf8');
   const signature = request.get('x-razorpay-signature') ?? undefined;
   const data = await billingService.handleWebhook(rawBody, signature);
   response.status(StatusCodes.OK).json({ success: true, data });
