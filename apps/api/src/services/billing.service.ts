@@ -72,6 +72,12 @@ const planFromNotes = (payload: any): SubscriptionPlan | null => {
 
 const dateFromUnix = (value: unknown) => (typeof value === 'number' ? new Date(value * 1000) : undefined);
 
+const assertBillingAdmin = (context: BillingContext) => {
+  if (![Role.ADMIN, Role.SUPER_ADMIN].includes(context.role as Role)) {
+    throw new AppError('Admin access required', StatusCodes.FORBIDDEN);
+  }
+};
+
 const syncInstitutionSubscription = async (payload: any, eventType: string, institutionId: string | null) => {
   if (!institutionId) return false;
   const subscription = extractSubscription(payload);
@@ -192,6 +198,10 @@ export const getCurrentBilling = async (context: BillingContext) => {
       teacherLimit: true,
       staffLimit: true,
       isActive: true,
+      razorpaySubscriptionId: true,
+      currentPeriodStart: true,
+      currentPeriodEnd: true,
+      cancelAtPeriodEnd: true,
     },
   });
 
@@ -216,10 +226,21 @@ export const getCurrentBilling = async (context: BillingContext) => {
   };
 };
 
+export const listInvoices = async (context: BillingContext) => {
+  const institutionId = context.institutionId;
+  if (!institutionId) throw new AppError('Institution context is required', StatusCodes.BAD_REQUEST);
+
+  return prisma.billingInvoice.findMany({
+    where: { institutionId },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+  });
+};
+
 export const createCheckout = async (context: BillingContext, input: CheckoutInput) => {
   const institutionId = context.institutionId;
   if (!institutionId) throw new AppError('Institution context is required', StatusCodes.BAD_REQUEST);
-  if (![Role.ADMIN, Role.SUPER_ADMIN].includes(context.role as Role)) throw new AppError('Admin access required', StatusCodes.FORBIDDEN);
+  assertBillingAdmin(context);
   if (input.plan === SubscriptionPlan.FREE_TRIAL) throw new AppError('Free trial does not require checkout', StatusCodes.BAD_REQUEST);
 
   const planConfig = billingPlans[input.plan];
@@ -262,6 +283,60 @@ export const createCheckout = async (context: BillingContext, input: CheckoutInp
     plan: input.plan,
     interval: input.interval,
   };
+};
+
+export const cancelSubscription = async (context: BillingContext) => {
+  const institutionId = context.institutionId;
+  if (!institutionId) throw new AppError('Institution context is required', StatusCodes.BAD_REQUEST);
+  assertBillingAdmin(context);
+
+  const institution = await prisma.institution.findUnique({ where: { id: institutionId } });
+  if (!institution?.razorpaySubscriptionId) throw new AppError('No active Razorpay subscription found', StatusCodes.BAD_REQUEST);
+
+  const razorpay = getRazorpayClient();
+  await razorpay.subscriptions.cancel(institution.razorpaySubscriptionId, false);
+
+  const updated = await prisma.institution.update({
+    where: { id: institutionId },
+    data: { cancelAtPeriodEnd: true, subscriptionStatus: SubscriptionStatus.CANCELLED },
+  });
+
+  await writeAuditLog({
+    actorId: context.userId,
+    institutionId,
+    action: 'BILLING_SUBSCRIPTION_CANCEL_REQUESTED',
+    entityType: 'Institution',
+    entityId: institutionId,
+    metadata: { razorpaySubscriptionId: institution.razorpaySubscriptionId },
+  }).catch(() => undefined);
+
+  return updated;
+};
+
+export const resumeSubscription = async (context: BillingContext) => {
+  const institutionId = context.institutionId;
+  if (!institutionId) throw new AppError('Institution context is required', StatusCodes.BAD_REQUEST);
+  assertBillingAdmin(context);
+
+  const institution = await prisma.institution.findUnique({ where: { id: institutionId } });
+  if (!institution) throw new AppError('Institution not found', StatusCodes.NOT_FOUND);
+  if (!institution.razorpaySubscriptionId) throw new AppError('No Razorpay subscription found', StatusCodes.BAD_REQUEST);
+
+  const updated = await prisma.institution.update({
+    where: { id: institutionId },
+    data: { cancelAtPeriodEnd: false, subscriptionStatus: SubscriptionStatus.ACTIVE, isActive: true },
+  });
+
+  await writeAuditLog({
+    actorId: context.userId,
+    institutionId,
+    action: 'BILLING_SUBSCRIPTION_RESUMED',
+    entityType: 'Institution',
+    entityId: institutionId,
+    metadata: { razorpaySubscriptionId: institution.razorpaySubscriptionId },
+  }).catch(() => undefined);
+
+  return updated;
 };
 
 export const handleWebhook = async (rawBody: string, signature?: string) => {
