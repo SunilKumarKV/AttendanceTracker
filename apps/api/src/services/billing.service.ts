@@ -120,6 +120,57 @@ const syncInstitutionSubscription = async (payload: any, eventType: string, inst
   return true;
 };
 
+const syncBillingInvoice = async (payload: any, eventType: string, institutionId: string | null) => {
+  const invoice = extractInvoice(payload);
+  const payment = extractPayment(payload);
+  if (!institutionId || (!invoice && !payment)) return false;
+
+  const providerInvoiceId = invoice?.id ? String(invoice.id) : payment?.invoice_id ? String(payment.invoice_id) : undefined;
+  if (!providerInvoiceId) return false;
+
+  const amount = Number(invoice?.amount ?? invoice?.amount_paid ?? payment?.amount ?? 0);
+  const status = String(invoice?.status ?? (eventType === 'payment.failed' ? 'failed' : payment?.status ?? eventType));
+
+  await prisma.billingInvoice.upsert({
+    where: { providerInvoiceId },
+    create: {
+      institutionId,
+      provider: 'razorpay',
+      providerInvoiceId,
+      providerPaymentId: payment?.id ? String(payment.id) : undefined,
+      amount,
+      currency: String(invoice?.currency ?? payment?.currency ?? 'INR').toUpperCase(),
+      status,
+      hostedUrl: invoice?.short_url ?? invoice?.hosted_url ?? null,
+      pdfUrl: invoice?.pdf_url ?? null,
+      paidAt: dateFromUnix(invoice?.paid_at ?? payment?.created_at),
+      dueAt: dateFromUnix(invoice?.expire_by ?? invoice?.due_by),
+      metadata: { eventType, invoice, payment } as Prisma.InputJsonValue,
+    },
+    update: {
+      providerPaymentId: payment?.id ? String(payment.id) : undefined,
+      amount,
+      currency: String(invoice?.currency ?? payment?.currency ?? 'INR').toUpperCase(),
+      status,
+      hostedUrl: invoice?.short_url ?? invoice?.hosted_url ?? null,
+      pdfUrl: invoice?.pdf_url ?? null,
+      paidAt: dateFromUnix(invoice?.paid_at ?? payment?.created_at),
+      dueAt: dateFromUnix(invoice?.expire_by ?? invoice?.due_by),
+      metadata: { eventType, invoice, payment } as Prisma.InputJsonValue,
+    },
+  });
+
+  await writeAuditLog({
+    institutionId,
+    action: 'BILLING_INVOICE_SYNCED',
+    entityType: 'BillingInvoice',
+    entityId: providerInvoiceId,
+    metadata: { eventType, status, amount },
+  }).catch(() => undefined);
+
+  return true;
+};
+
 export const listPlans = async () => getBillingPlans();
 
 export const getCurrentBilling = async (context: BillingContext) => {
@@ -229,6 +280,7 @@ export const handleWebhook = async (rawBody: string, signature?: string) => {
   }
 
   const synced = await syncInstitutionSubscription(payload, eventType, institutionId);
+  const invoiceSynced = await syncBillingInvoice(payload, eventType, institutionId);
 
   await prisma.billingEvent.create({
     data: {
@@ -246,8 +298,8 @@ export const handleWebhook = async (rawBody: string, signature?: string) => {
     action: 'BILLING_WEBHOOK_RECEIVED',
     entityType: 'BillingEvent',
     entityId: providerEventId,
-    metadata: { eventType, synced },
+    metadata: { eventType, synced, invoiceSynced },
   }).catch(() => undefined);
 
-  return { received: true, duplicate: false, eventType, synced };
+  return { received: true, duplicate: false, eventType, synced, invoiceSynced };
 };
