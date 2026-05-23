@@ -143,7 +143,7 @@ export const PlatformDashboard: React.FC = () => {
   };
 
   return (
-    <MainLayout>
+
       <div className="space-y-8">
         <div>
           <p className="text-sm font-black uppercase tracking-wider text-blue-600">Version 2.0 SaaS Platform</p>
@@ -252,6 +252,6 @@ export const PlatformDashboard: React.FC = () => {
           </div>
         </div>
       </div>
-    </MainLayout>
+
   );
 };
