@@ -2,31 +2,44 @@ import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import * as billingService from '../services/billing.service.js';
 
+const billingContext = (request: Request) => ({
+  userId: request.auth?.userId,
+  role: request.auth?.role,
+  institutionId: request.auth?.institutionId,
+});
+
 export const listPlans = async (_request: Request, response: Response) => {
   const data = await billingService.listPlans();
   response.status(StatusCodes.OK).json({ success: true, data });
 };
 
 export const currentBilling = async (request: Request, response: Response) => {
-  const data = await billingService.getCurrentBilling({
-    role: request.auth?.role,
-    institutionId: request.auth?.institutionId,
-  });
+  const data = await billingService.getCurrentBilling(billingContext(request));
+  response.status(StatusCodes.OK).json({ success: true, data });
+};
 
+export const invoices = async (request: Request, response: Response) => {
+  const data = await billingService.listInvoices(billingContext(request));
   response.status(StatusCodes.OK).json({ success: true, data });
 };
 
 export const checkout = async (request: Request, response: Response) => {
-  const data = await billingService.createCheckout({
-    userId: request.auth?.userId,
-    role: request.auth?.role,
-    institutionId: request.auth?.institutionId,
-  }, {
+  const data = await billingService.createCheckout(billingContext(request), {
     plan: request.body.plan,
     interval: request.body.interval ?? 'monthly',
   });
 
   response.status(StatusCodes.CREATED).json({ success: true, data });
+};
+
+export const cancelSubscription = async (request: Request, response: Response) => {
+  const data = await billingService.cancelSubscription(billingContext(request));
+  response.status(StatusCodes.OK).json({ success: true, data });
+};
+
+export const resumeSubscription = async (request: Request, response: Response) => {
+  const data = await billingService.resumeSubscription(billingContext(request));
+  response.status(StatusCodes.OK).json({ success: true, data });
 };
 
 export const webhook = async (request: Request, response: Response) => {
