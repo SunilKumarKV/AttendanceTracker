@@ -1,5 +1,5 @@
 import React from 'react';
-import { KeyRound, Search } from 'lucide-react';
+import { Eye, KeyRound, Search } from 'lucide-react';
 import type { Institution, SubscriptionPlan } from '../../api/platform';
 import { platformPlans, platformStatuses, planStyles, progressWidth, statusStyles, type StatusFilter } from './platformConstants';
 
@@ -17,6 +17,7 @@ interface InstitutionTableProps {
   onStatusFilterChange: (value: StatusFilter) => void;
   onResetEmailChange: (institutionId: string, email: string) => void;
   onSendResetLink: (institution: Institution) => void;
+  onView: (institution: Institution) => void;
   onEdit: (institution: Institution) => void;
   onToggleStatus: (institution: Institution) => void;
 }
@@ -35,6 +36,7 @@ export const InstitutionTable: React.FC<InstitutionTableProps> = ({
   onStatusFilterChange,
   onResetEmailChange,
   onSendResetLink,
+  onView,
   onEdit,
   onToggleStatus,
 }) => (
@@ -91,6 +93,7 @@ export const InstitutionTable: React.FC<InstitutionTableProps> = ({
                 </td>
                 <td className="p-4">
                   <div className="flex flex-wrap gap-2">
+                    <button onClick={() => onView(item)} className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-3 py-2 font-bold text-blue-700 hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-300"><Eye size={14} /> View</button>
                     <button onClick={() => onEdit(item)} className="rounded-lg bg-slate-100 px-3 py-2 font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-200">Edit</button>
                     <button disabled={updatingId === item.id} onClick={() => onToggleStatus(item)} className={`rounded-lg px-3 py-2 font-bold disabled:opacity-60 ${item.isActive ? 'bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-950/40 dark:text-red-300' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300'}`}>{updatingId === item.id ? 'Updating...' : item.isActive ? 'Suspend' : 'Activate'}</button>
                   </div>
