@@ -14,6 +14,7 @@ platformRouter.use(writeRateLimiter);
 
 platformRouter.get('/platform/dashboard', requireRole(Role.SUPER_ADMIN), asyncHandler(platformController.dashboard));
 platformRouter.get('/platform/institutions', requireRole(Role.SUPER_ADMIN), asyncHandler(platformController.listInstitutions));
+platformRouter.get('/platform/audit-logs', requireRole(Role.SUPER_ADMIN), asyncHandler(platformController.auditLogs));
 platformRouter.post('/platform/institutions', requireRole(Role.SUPER_ADMIN), validateBody(institutionSchema), asyncHandler(platformController.createInstitution));
 platformRouter.patch('/platform/institutions/:id', requireRole(Role.SUPER_ADMIN), validateBody(institutionUpdateSchema), asyncHandler(platformController.updateInstitution));
 platformRouter.post('/platform/institutions/:id/admins', requireRole(Role.SUPER_ADMIN), validateBody(institutionAdminSchema), asyncHandler(platformController.createInstitutionAdmin));
