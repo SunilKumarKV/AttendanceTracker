@@ -42,8 +42,14 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
     localStorage.getItem('attendance_tracker_theme') === 'dark' ? 'dark' : 'light'
   ));
 
+  const superAdminItems: SidebarItem[] = [
+    { label: 'Platform', path: '/platform', icon: Building2 },
+    { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { label: 'Security Logs', path: '/audit-logs', icon: ShieldCheck },
+    { label: 'Settings', path: '/settings', icon: Settings },
+  ];
+
   const adminItems: SidebarItem[] = [
-    ...(user?.role === 'SUPER_ADMIN' ? [{ label: 'Platform', path: '/platform', icon: Building2 }] : []),
     { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { label: 'Students', path: '/students', icon: Users },
     { label: 'Academics', path: '/academics', icon: GraduationCap },
@@ -100,15 +106,16 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
     { label: 'Profile', path: '/profile', icon: UserIcon },
   ];
 
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'HOD';
   const roleLabel = user?.role === 'PROFESSOR' ? 'TEACHER' : user?.role ? user.role.replace('_', ' ') : 'Guest';
   const isStudent = user?.role === 'STUDENT';
   const isParent = user?.role === 'PARENT';
   const isStaff = user?.role === 'STAFF';
-  const menuItems = isAdmin ? adminItems : isStudent ? studentItems : isParent ? parentItems : isStaff ? staffItems : professorItems;
+  const menuItems = isSuperAdmin ? superAdminItems : isAdmin ? adminItems : isStudent ? studentItems : isParent ? parentItems : isStaff ? staffItems : professorItems;
 
   const getPageTitle = () => {
-    const currentItem = [...adminItems, ...professorItems, ...studentItems, ...parentItems, ...staffItems, { label: 'Security Logs', path: '/audit-logs' }, { label: 'Library/Lab', path: '/library-lab' }, { label: 'Behaviour', path: '/behaviour' }, { label: 'Attendance Control', path: '/attendance-control' }, { label: 'Requests', path: '/teacher-requests' }, { label: 'Profile', path: '/profile' }, { label: 'Analytics', path: '/analytics' }, { label: 'Profile', path: '/professor-profile' }]
+    const currentItem = [...superAdminItems, ...adminItems, ...professorItems, ...studentItems, ...parentItems, ...staffItems, { label: 'Security Logs', path: '/audit-logs' }, { label: 'Library/Lab', path: '/library-lab' }, { label: 'Behaviour', path: '/behaviour' }, { label: 'Attendance Control', path: '/attendance-control' }, { label: 'Requests', path: '/teacher-requests' }, { label: 'Profile', path: '/profile' }, { label: 'Analytics', path: '/analytics' }, { label: 'Profile', path: '/professor-profile' }]
       .find(item => item.path === location.pathname);
     return currentItem?.label || 'AttendanceTracker';
   };
@@ -197,7 +204,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
               <p className="text-sm font-bold text-slate-900 truncate dark:text-slate-100">{user?.name || 'User'}</p>
               <span className={`
                 inline-block px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider
-                ${isAdmin ? 'bg-amber-100 text-amber-700' : isParent ? 'bg-purple-100 text-purple-700' : isStaff ? 'bg-cyan-100 text-cyan-700' : isStudent ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}
+                ${isSuperAdmin ? 'bg-violet-100 text-violet-700' : isAdmin ? 'bg-amber-100 text-amber-700' : isParent ? 'bg-purple-100 text-purple-700' : isStaff ? 'bg-cyan-100 text-cyan-700' : isStudent ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}
               `}>
                 {roleLabel}
               </span>
@@ -258,9 +265,12 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
         title="Log out?"
         message="You will need to sign in again to access AttendanceTracker."
         confirmLabel="Log out"
-        destructive
+        variant="danger"
         onCancel={() => setConfirmLogout(false)}
-        onConfirm={() => void handleLogout()}
+        onConfirm={() => {
+          setConfirmLogout(false);
+          void handleLogout();
+        }}
       />
     </div>
   );
