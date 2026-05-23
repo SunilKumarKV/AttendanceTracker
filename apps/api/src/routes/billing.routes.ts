@@ -7,5 +7,8 @@ export const billingRouter: ExpressRouter = Router();
 
 billingRouter.get('/billing/plans', asyncHandler(billingController.listPlans));
 billingRouter.get('/billing/current', authenticate, asyncHandler(billingController.currentBilling));
+billingRouter.get('/billing/invoices', authenticate, asyncHandler(billingController.invoices));
 billingRouter.post('/billing/checkout', authenticate, asyncHandler(billingController.checkout));
+billingRouter.post('/billing/cancel', authenticate, asyncHandler(billingController.cancelSubscription));
+billingRouter.post('/billing/resume', authenticate, asyncHandler(billingController.resumeSubscription));
 billingRouter.post('/billing/webhook', express.raw({ type: 'application/json' }), asyncHandler(billingController.webhook));
