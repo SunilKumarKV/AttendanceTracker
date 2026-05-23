@@ -197,6 +197,51 @@ export const refresh = async (refreshToken: string, meta: RequestMeta = {}) => {
   };
 };
 
+export const listSessions = async (userId: string, currentRefreshToken?: string) => {
+  const currentTokenHash = currentRefreshToken ? hashToken(currentRefreshToken) : null;
+  const sessions = await prisma.refreshToken.findMany({
+    where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
+    orderBy: [{ lastUsedAt: 'desc' }, { createdAt: 'desc' }],
+    select: {
+      id: true,
+      ipAddress: true,
+      userAgent: true,
+      deviceLabel: true,
+      lastUsedAt: true,
+      createdAt: true,
+      expiresAt: true,
+      tokenHash: true,
+    },
+  });
+
+  return sessions.map(({ tokenHash, ...session }) => ({
+    ...session,
+    current: currentTokenHash ? tokenHash === currentTokenHash : false,
+  }));
+};
+
+export const revokeSession = async (userId: string, sessionId: string, meta: RequestMeta = {}) => {
+  const session = await prisma.refreshToken.findFirst({ where: { id: sessionId, userId, revokedAt: null } });
+  if (!session) throw new AppError('Session not found', StatusCodes.NOT_FOUND);
+  await prisma.refreshToken.update({ where: { id: session.id }, data: { revokedAt: new Date(), lastUsedAt: new Date() } });
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { institutionId: true } });
+  await writeAuditLog({ actorId: userId, institutionId: user?.institutionId, action: 'SESSION_REVOKED', entityType: 'RefreshToken', entityId: session.id, metadata: { deviceLabel: session.deviceLabel }, ipAddress: meta.ipAddress, userAgent: meta.userAgent }).catch(() => undefined);
+};
+
+export const revokeOtherSessions = async (userId: string, currentRefreshToken?: string, meta: RequestMeta = {}) => {
+  const currentTokenHash = currentRefreshToken ? hashToken(currentRefreshToken) : null;
+  await prisma.refreshToken.updateMany({
+    where: {
+      userId,
+      revokedAt: null,
+      ...(currentTokenHash ? { tokenHash: { not: currentTokenHash } } : {}),
+    },
+    data: { revokedAt: new Date(), lastUsedAt: new Date() },
+  });
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { institutionId: true } });
+  await writeAuditLog({ actorId: userId, institutionId: user?.institutionId, action: 'OTHER_SESSIONS_REVOKED', entityType: 'RefreshToken', ipAddress: meta.ipAddress, userAgent: meta.userAgent }).catch(() => undefined);
+};
+
 export const logout = async (refreshToken?: string, userId?: string, meta: RequestMeta = {}) => {
   if (refreshToken) {
     await prisma.refreshToken.updateMany({
