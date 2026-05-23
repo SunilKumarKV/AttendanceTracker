@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Clipboard, Eye, EyeOff, Loader2, Plus, Sparkles } from 'lucide-react';
+import { Clipboard, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { forgotPasswordRequest } from '../api/auth';
 import { createInstitution, createInstitutionAdmin, getPlatformDashboard, Institution, InstitutionPayload, listInstitutions, updateInstitution, PlatformDashboardData, SubscriptionPlan } from '../api/platform';
+import { InstitutionAdminForm } from './platform/InstitutionAdminForm';
+import { InstitutionForm } from './platform/InstitutionForm';
 import { InstitutionTable } from './platform/InstitutionTable';
 import { PlatformStatsCards } from './platform/PlatformStatsCards';
-import { emptyInstitutionForm, generateTemporaryPassword, platformPlans, platformStatuses, type StatusFilter } from './platform/platformConstants';
+import { emptyInstitutionForm, generateTemporaryPassword, type StatusFilter } from './platform/platformConstants';
 
 export const PlatformDashboard: React.FC = () => {
   const [dashboard, setDashboard] = useState<PlatformDashboardData | null>(null);
@@ -179,47 +181,25 @@ export const PlatformDashboard: React.FC = () => {
       )}
 
       <div className="grid gap-6 xl:grid-cols-[1fr_0.8fr]">
-        <form onSubmit={submitInstitution} className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="mb-5 flex items-center justify-between gap-3">
-            <h2 className="text-xl font-black">{editingId ? 'Edit Institution' : 'Create Institution'}</h2>
-            {editingId && <button type="button" onClick={() => { setEditingId(null); setForm(emptyInstitutionForm); }} className="text-sm font-bold text-slate-500 hover:text-blue-600">Cancel edit</button>}
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <input required placeholder="Institution name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="rounded-xl border p-3 dark:border-slate-700 dark:bg-slate-950" />
-            <input placeholder="Code" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} className="rounded-xl border p-3 uppercase dark:border-slate-700 dark:bg-slate-950" />
-            <input placeholder="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="rounded-xl border p-3 dark:border-slate-700 dark:bg-slate-950" />
-            <input placeholder="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="rounded-xl border p-3 dark:border-slate-700 dark:bg-slate-950" />
-            <input placeholder="Contact person" value={form.contactPerson} onChange={(e) => setForm({ ...form, contactPerson: e.target.value })} className="rounded-xl border p-3 dark:border-slate-700 dark:bg-slate-950" />
-            <input placeholder="Academic year" value={form.academicYear} onChange={(e) => setForm({ ...form, academicYear: e.target.value })} className="rounded-xl border p-3 dark:border-slate-700 dark:bg-slate-950" />
-            <select value={form.subscriptionPlan} onChange={(e) => setForm({ ...form, subscriptionPlan: e.target.value as SubscriptionPlan })} className="rounded-xl border p-3 dark:border-slate-700 dark:bg-slate-950">{platformPlans.map((plan) => <option key={plan} value={plan}>{plan}</option>)}</select>
-            <select value={form.subscriptionStatus} onChange={(e) => setForm({ ...form, subscriptionStatus: e.target.value as InstitutionPayload['subscriptionStatus'] })} className="rounded-xl border p-3 dark:border-slate-700 dark:bg-slate-950">{platformStatuses.map((status) => <option key={status} value={status}>{status}</option>)}</select>
-            <input type="number" min={1} placeholder="Student limit" value={form.studentLimit} onChange={(e) => setForm({ ...form, studentLimit: Number(e.target.value) })} className="rounded-xl border p-3 dark:border-slate-700 dark:bg-slate-950" />
-            <input type="number" min={1} placeholder="Teacher limit" value={form.teacherLimit} onChange={(e) => setForm({ ...form, teacherLimit: Number(e.target.value) })} className="rounded-xl border p-3 dark:border-slate-700 dark:bg-slate-950" />
-            <input type="number" min={1} placeholder="Staff limit" value={form.staffLimit} onChange={(e) => setForm({ ...form, staffLimit: Number(e.target.value) })} className="rounded-xl border p-3 dark:border-slate-700 dark:bg-slate-950" />
-            <input placeholder="Logo URL" value={form.logoUrl} onChange={(e) => setForm({ ...form, logoUrl: e.target.value })} className="rounded-xl border p-3 dark:border-slate-700 dark:bg-slate-950" />
-            <textarea placeholder="Address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="md:col-span-2 rounded-xl border p-3 dark:border-slate-700 dark:bg-slate-950" />
-          </div>
-          <button disabled={saving} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-black text-white disabled:bg-blue-300"><Plus size={18} /> {editingId ? 'Save Institution' : 'Create Institution'}</button>
-        </form>
+        <InstitutionForm
+          form={form}
+          editingId={editingId}
+          saving={saving}
+          onSubmit={submitInstitution}
+          onChange={setForm}
+          onCancelEdit={() => { setEditingId(null); setForm(emptyInstitutionForm); }}
+        />
 
-        <form onSubmit={submitAdmin} className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <h2 className="mb-5 text-xl font-black">Create Institution Admin</h2>
-          <div className="space-y-4">
-            <select required value={adminForm.institutionId} onChange={(e) => setAdminForm({ ...adminForm, institutionId: e.target.value })} className="w-full rounded-xl border p-3 dark:border-slate-700 dark:bg-slate-950">
-              <option value="">Select institution</option>
-              {institutions.map((item) => <option key={item.id} value={item.id}>{item.name} ({item.code})</option>)}
-            </select>
-            <input required placeholder="Admin name" value={adminForm.name} onChange={(e) => setAdminForm({ ...adminForm, name: e.target.value })} className="w-full rounded-xl border p-3 dark:border-slate-700 dark:bg-slate-950" />
-            <input required type="email" placeholder="Admin email" value={adminForm.email} onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })} className="w-full rounded-xl border p-3 dark:border-slate-700 dark:bg-slate-950" />
-            <div className="flex gap-2">
-              <input required type={showPassword ? 'text' : 'password'} minLength={12} placeholder="Temporary password" value={adminForm.password} onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })} className="w-full rounded-xl border p-3 dark:border-slate-700 dark:bg-slate-950" />
-              <button type="button" onClick={() => setShowPassword((value) => !value)} className="rounded-xl border px-3 dark:border-slate-700">{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
-            </div>
-            <button type="button" onClick={() => setAdminForm({ ...adminForm, password: generateTemporaryPassword() })} className="inline-flex items-center gap-2 rounded-xl bg-blue-50 px-4 py-2 text-sm font-black text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"><Sparkles size={16} /> Generate secure password</button>
-            {selectedInstitution && <p className="rounded-xl bg-blue-50 p-3 text-sm font-bold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">Admin will be scoped to {selectedInstitution.name}. They cannot access another institution.</p>}
-          </div>
-          <button disabled={saving} className="mt-5 rounded-xl bg-slate-900 px-5 py-3 font-black text-white disabled:bg-slate-400 dark:bg-white dark:text-slate-900">Create Admin</button>
-        </form>
+        <InstitutionAdminForm
+          institutions={institutions}
+          adminForm={adminForm}
+          selectedInstitution={selectedInstitution}
+          saving={saving}
+          showPassword={showPassword}
+          onSubmit={submitAdmin}
+          onChange={setAdminForm}
+          onTogglePassword={() => setShowPassword((value) => !value)}
+        />
       </div>
 
       <InstitutionTable
