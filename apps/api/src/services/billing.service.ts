@@ -1,4 +1,4 @@
-import { Prisma, Role, SubscriptionPlan } from '@prisma/client';
+import { Prisma, Role, SubscriptionPlan, SubscriptionStatus } from '@prisma/client';
 import crypto from 'node:crypto';
 import { StatusCodes } from 'http-status-codes';
 import Razorpay from 'razorpay';
@@ -52,12 +52,73 @@ const verifyWebhookSignature = (rawBody: string, signature?: string) => {
   }
 };
 
+const extractSubscription = (payload: any) => payload?.payload?.subscription?.entity ?? null;
+const extractPayment = (payload: any) => payload?.payload?.payment?.entity ?? null;
+const extractInvoice = (payload: any) => payload?.payload?.invoice?.entity ?? null;
+
 const extractInstitutionId = (payload: any) => (
-  payload?.payload?.subscription?.entity?.notes?.institutionId
-  ?? payload?.payload?.payment?.entity?.notes?.institutionId
-  ?? payload?.payload?.invoice?.entity?.notes?.institutionId
+  extractSubscription(payload)?.notes?.institutionId
+  ?? extractPayment(payload)?.notes?.institutionId
+  ?? extractInvoice(payload)?.notes?.institutionId
   ?? null
 );
+
+const planFromNotes = (payload: any): SubscriptionPlan | null => {
+  const raw = extractSubscription(payload)?.notes?.requestedPlan
+    ?? extractPayment(payload)?.notes?.requestedPlan
+    ?? extractInvoice(payload)?.notes?.requestedPlan;
+  return raw && Object.values(SubscriptionPlan).includes(raw) ? raw : null;
+};
+
+const dateFromUnix = (value: unknown) => (typeof value === 'number' ? new Date(value * 1000) : undefined);
+
+const syncInstitutionSubscription = async (payload: any, eventType: string, institutionId: string | null) => {
+  if (!institutionId) return false;
+  const subscription = extractSubscription(payload);
+  const payment = extractPayment(payload);
+  const plan = planFromNotes(payload);
+  const subscriptionId = subscription?.id ?? payment?.subscription_id;
+
+  const update: Prisma.InstitutionUpdateInput = {};
+
+  if (subscriptionId) update.razorpaySubscriptionId = String(subscriptionId);
+  if (plan) {
+    const config = getBillingPlan(plan);
+    update.subscriptionPlan = plan;
+    update.studentLimit = config.studentLimit;
+    update.teacherLimit = config.teacherLimit;
+    update.staffLimit = config.staffLimit;
+  }
+
+  if (subscription?.current_start) update.currentPeriodStart = dateFromUnix(subscription.current_start);
+  if (subscription?.current_end) update.currentPeriodEnd = dateFromUnix(subscription.current_end);
+
+  if (eventType === 'subscription.activated' || eventType === 'subscription.charged') {
+    update.subscriptionStatus = SubscriptionStatus.ACTIVE;
+    update.isActive = true;
+    update.cancelAtPeriodEnd = false;
+  } else if (eventType === 'payment.failed') {
+    update.subscriptionStatus = SubscriptionStatus.PAST_DUE;
+  } else if (eventType === 'subscription.cancelled') {
+    update.subscriptionStatus = SubscriptionStatus.CANCELLED;
+    update.cancelAtPeriodEnd = true;
+  } else if (eventType === 'subscription.completed') {
+    update.subscriptionStatus = SubscriptionStatus.EXPIRED;
+    update.isActive = false;
+  } else {
+    return false;
+  }
+
+  await prisma.institution.update({ where: { id: institutionId }, data: update });
+  await writeAuditLog({
+    institutionId,
+    action: 'BILLING_SUBSCRIPTION_SYNCED',
+    entityType: 'Institution',
+    entityId: institutionId,
+    metadata: { eventType, subscriptionId, plan },
+  }).catch(() => undefined);
+  return true;
+};
 
 export const listPlans = async () => getBillingPlans();
 
@@ -167,6 +228,8 @@ export const handleWebhook = async (rawBody: string, signature?: string) => {
     }
   }
 
+  const synced = await syncInstitutionSubscription(payload, eventType, institutionId);
+
   await prisma.billingEvent.create({
     data: {
       institutionId,
@@ -183,8 +246,8 @@ export const handleWebhook = async (rawBody: string, signature?: string) => {
     action: 'BILLING_WEBHOOK_RECEIVED',
     entityType: 'BillingEvent',
     entityId: providerEventId,
-    metadata: { eventType },
+    metadata: { eventType, synced },
   }).catch(() => undefined);
 
-  return { received: true, duplicate: false, eventType };
+  return { received: true, duplicate: false, eventType, synced };
 };
