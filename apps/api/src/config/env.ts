@@ -57,6 +57,9 @@ const envSchema = z.object({
   COOKIE_DOMAIN: z.preprocess(emptyToUndefined, z.string().optional().default('')),
   COOKIE_SAMESITE: z.preprocess(emptyToUndefined, z.enum(['lax', 'strict', 'none']).default(isProduction ? 'none' : 'lax')),
   COOKIE_SECURE: z.preprocess((value) => toBoolean(emptyToUndefined(value)), z.boolean().default(isProduction)),
+  RAZORPAY_KEY_ID: z.preprocess(emptyToUndefined, z.string().optional().default('')),
+RAZORPAY_KEY_SECRET: z.preprocess(emptyToUndefined, z.string().optional().default('')),
+RAZORPAY_WEBHOOK_SECRET: z.preprocess(emptyToUndefined, z.string().optional().default('')),
 });
 
 const parsed = envSchema.safeParse({
@@ -116,4 +119,9 @@ export const env = {
     templateName: values.WHATSAPP_TEMPLATE_NAME,
     templateLang: values.WHATSAPP_TEMPLATE_LANG,
   },
+  razorpay: {
+  keyId: values.RAZORPAY_KEY_ID,
+  keySecret: values.RAZORPAY_KEY_SECRET,
+  webhookSecret: values.RAZORPAY_WEBHOOK_SECRET,
+},
 };
