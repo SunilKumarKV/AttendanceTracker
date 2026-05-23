@@ -38,6 +38,11 @@ const PlatformAuditLogs = lazy(() =>
     default: module.PlatformAuditLogs,
   }))
 );
+const ActiveSessions = lazy(() =>
+  import('./components/security/ActiveSessions').then((module) => ({
+    default: module.ActiveSessions,
+  }))
+);
 
 const StudentDashboard = lazy(() => import('./components/StudentDashboard').then((module) => ({ default: module.StudentDashboard })));
 const StudentProfile = lazy(() => import('./components/StudentProfile').then((module) => ({ default: module.StudentProfile })));
@@ -102,6 +107,15 @@ export default function App() {
     <RoleRoute allowedRoles={['SUPER_ADMIN']}>
       <PlatformAuditLogs />
     </RoleRoute>
+  }
+/>
+
+<Route
+  path="/security/sessions"
+  element={
+    <ProtectedRoute>
+      <ActiveSessions />
+    </ProtectedRoute>
   }
 />
 

@@ -53,6 +53,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
     { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { label: 'Security Logs', path: '/platform/audit-logs', icon: ShieldCheck },
     { label: 'Settings', path: '/settings', icon: Settings },
+    { label: 'Active Sessions', path: '/security/sessions', icon: ShieldCheck },
   ];
 
   const adminItems: SidebarItem[] = [
@@ -71,6 +72,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
     { label: 'Library/Lab', path: '/library-lab', icon: Briefcase },
     { label: 'Security Logs', path: '/audit-logs', icon: ShieldCheck },
     { label: 'Settings', path: '/settings', icon: Settings },
+    { label: 'Active Sessions', path: '/security/sessions', icon: ShieldCheck },
   ];
 
   const professorItems: SidebarItem[] = [
@@ -84,7 +86,9 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
     { label: 'Analytics', path: '/analytics', icon: BarChart3 },
     { label: 'Behaviour', path: '/behaviour', icon: ClipboardCheck },
     { label: 'Profile', path: '/professor-profile', icon: UserIcon },
+    { label: 'Active Sessions', path: '/security/sessions', icon: ShieldCheck },
     { label: 'Settings', path: '/professor-settings', icon: Settings },
+
   ];
 
 
