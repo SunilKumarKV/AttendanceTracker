@@ -47,6 +47,21 @@ export const listAuditLogs = async (institutionId: string, limit = 50) => (
   })
 );
 
+export const listPlatformAuditLogs = async ({ limit = 100, institutionId, action }: { limit?: number; institutionId?: string; action?: string }) => (
+  prisma.auditLog.findMany({
+    where: {
+      institutionId: institutionId || undefined,
+      action: action ? { contains: action, mode: 'insensitive' } : undefined,
+    },
+    include: {
+      actor: { select: { id: true, name: true, email: true, role: true } },
+      institution: { select: { id: true, name: true, code: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: Math.min(Math.max(Number(limit), 1), 200),
+  })
+);
+
 export const listActivityTimeline = async (institutionId: string, limit = 20) => {
   const logs = await listAuditLogs(institutionId, limit);
   return logs.map((log) => ({
