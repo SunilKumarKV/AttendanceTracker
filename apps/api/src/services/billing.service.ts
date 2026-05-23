@@ -72,8 +72,10 @@ const planFromNotes = (payload: any): SubscriptionPlan | null => {
 
 const dateFromUnix = (value: unknown) => (typeof value === 'number' ? new Date(value * 1000) : undefined);
 
+const isBillingAdmin = (role?: Role) => role === Role.ADMIN || role === Role.SUPER_ADMIN;
+
 const assertBillingAdmin = (context: BillingContext) => {
-  if (![Role.ADMIN, Role.SUPER_ADMIN].includes(context.role as Role)) {
+  if (!isBillingAdmin(context.role)) {
     throw new AppError('Admin access required', StatusCodes.FORBIDDEN);
   }
 };
