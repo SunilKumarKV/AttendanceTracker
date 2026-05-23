@@ -132,7 +132,7 @@ export const login = async (email: string, password: string, meta: RequestMeta =
   await writeAuditLog({
     actorId: user.id,
     institutionId: user.institutionId,
-    action: 'LOGIN',
+    action: 'LOGIN_SUCCESS',
     entityType: 'Auth',
     ipAddress: meta.ipAddress,
     userAgent: meta.userAgent,
