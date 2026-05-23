@@ -56,7 +56,6 @@ export const BillingDashboard: React.FC = () => {
       setCheckoutPlan(null);
     }
   };
-
   if (loading) {
     return (
       <div className="rounded-3xl border border-slate-100 bg-white p-8 text-center font-bold text-slate-500 dark:border-slate-800 dark:bg-slate-900">
