@@ -231,7 +231,7 @@ export const requestPasswordReset = async (email: string, meta: RequestMeta = {}
   await writeAuditLog({
     actorId: user.id,
     institutionId: user.institutionId,
-    action: 'PASSWORD_RESET_REQUEST',
+    action: 'PASSWORD_RESET_REQUESTED',
     entityType: 'User',
     entityId: user.id,
     metadata: { emailSent },
@@ -270,7 +270,7 @@ export const resetPassword = async (token: string, newPassword: string, meta: Re
   await writeAuditLog({
     actorId: resetToken.userId,
     institutionId: resetToken.user.institutionId,
-    action: 'PASSWORD_RESET',
+    action: 'PASSWORD_RESET_COMPLETED',
     entityType: 'User',
     entityId: resetToken.userId,
     ipAddress: meta.ipAddress,
