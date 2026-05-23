@@ -34,15 +34,16 @@ const MOBILE_REGEX = /^[0-9]{10,15}$/;
 
 const normalizeKey = (value: string) => value.trim().toLowerCase().replace(/[\s_-]+/g, '');
 const normalizeValue = (value: unknown) => String(value ?? '').trim();
-const normalizeComparable = (value: string) => value.trim().toLowerCase();
+const normalizeComparable = (value: string) => value.trim().toLowerCase().replace(/[\s_-]+/g, '');
+const hasAnyValue = (row: Record<string, unknown>) => Object.values(row).some((value) => normalizeValue(value) !== '');
 
 const fieldAliases: Record<keyof ImportRow, string[]> = {
   name: ['name', 'studentname', 'fullname'],
-  rollNumber: ['rollnumber', 'rollno', 'roll'],
+  rollNumber: ['rollnumber', 'rollno', 'roll', 'admissionnumber', 'admissionno', 'studentid'],
   email: ['email', 'studentemail'],
-  mobile: ['mobile', 'phone', 'studentmobile', 'studentphone'],
-  className: ['classname', 'class', 'classcode', 'course', 'coursename'],
-  sectionName: ['sectionname', 'section', 'sectioncode'],
+  mobile: ['mobile', 'phone', 'studentmobile', 'studentphone', 'contact', 'contactnumber'],
+  className: ['classname', 'class', 'classcode', 'course', 'coursename', 'coursecode'],
+  sectionName: ['sectionname', 'section', 'sectioncode', 'division', 'batch'],
   parentName: ['parentname', 'guardianname'],
   parentEmail: ['parentemail', 'guardianemail'],
   parentMobile: ['parentmobile', 'parentphone', 'guardianmobile', 'guardianphone'],
@@ -59,30 +60,42 @@ const mapRawRow = (raw: Record<string, unknown>): ImportRow => ({
   name: findValue(raw, 'name'),
   rollNumber: findValue(raw, 'rollNumber'),
   email: findValue(raw, 'email').toLowerCase(),
-  mobile: findValue(raw, 'mobile'),
+  mobile: findValue(raw, 'mobile').replace(/\D/g, ''),
   className: findValue(raw, 'className'),
   sectionName: findValue(raw, 'sectionName'),
   parentName: findValue(raw, 'parentName') || undefined,
   parentEmail: findValue(raw, 'parentEmail').toLowerCase() || undefined,
-  parentMobile: findValue(raw, 'parentMobile') || undefined,
+  parentMobile: findValue(raw, 'parentMobile').replace(/\D/g, '') || undefined,
 });
+
+const xlsxRowToArray = (row: unknown): unknown[] => {
+  if (Array.isArray(row)) return row;
+  if (row && typeof row === 'object') return Object.values(row as Record<string, unknown>);
+  return [];
+};
 
 export const parseStudentImportFile = async (file: Express.Multer.File) => {
   const fileName = file.originalname.toLowerCase();
   if (fileName.endsWith('.csv')) {
-    return parseCsv(file.buffer.toString('utf8'), {
+    const rows = parseCsv(file.buffer.toString('utf8'), {
       columns: true,
       skip_empty_lines: true,
       trim: true,
       bom: true,
     }) as Record<string, unknown>[];
+    return rows.filter(hasAnyValue);
   }
   if (fileName.endsWith('.xlsx')) {
     const parsedRows = await readXlsxFile(file.buffer);
-    const rows = parsedRows as unknown as unknown[][];
+    const rows = (parsedRows as unknown[]).map(xlsxRowToArray);
     const [headers = [], ...dataRows] = rows;
     const headerNames = headers.map((header: unknown) => normalizeValue(header));
-    return dataRows.map((row: unknown[]) => Object.fromEntries(headerNames.map((header: string, index: number) => [header, row[index] ?? ''])));
+    if (headerNames.every((header) => !header)) {
+      throw new AppError('The uploaded XLSX file must include a header row.', StatusCodes.BAD_REQUEST);
+    }
+    return dataRows
+      .map((row: unknown[]) => Object.fromEntries(headerNames.map((header: string, index: number) => [header, row[index] ?? ''])))
+      .filter(hasAnyValue);
   }
   throw new AppError('Only .csv and .xlsx files are supported.', StatusCodes.BAD_REQUEST);
 };
