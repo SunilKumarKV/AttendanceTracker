@@ -1,4 +1,5 @@
-import { Role, SubscriptionPlan } from '@prisma/client';
+import { Prisma, Role, SubscriptionPlan } from '@prisma/client';
+import crypto from 'node:crypto';
 import { StatusCodes } from 'http-status-codes';
 import Razorpay from 'razorpay';
 import { billingPlans, getBillingPlans, getBillingPlan } from '../config/billingPlans.js';
@@ -33,6 +34,30 @@ const getRazorpayPlanId = (plan: SubscriptionPlan, interval: CheckoutInput['inte
   const config = getBillingPlan(plan);
   return interval === 'annual' ? config.razorpayAnnualPlanId : config.razorpayMonthlyPlanId;
 };
+
+const verifyWebhookSignature = (rawBody: string, signature?: string) => {
+  if (!env.razorpay.webhookSecret) {
+    throw new AppError('Razorpay webhook secret is not configured', StatusCodes.SERVICE_UNAVAILABLE);
+  }
+  if (!signature) {
+    throw new AppError('Missing Razorpay signature', StatusCodes.UNAUTHORIZED);
+  }
+
+  const expected = crypto.createHmac('sha256', env.razorpay.webhookSecret).update(rawBody).digest('hex');
+  const expectedBuffer = Buffer.from(expected);
+  const signatureBuffer = Buffer.from(signature);
+
+  if (expectedBuffer.length !== signatureBuffer.length || !crypto.timingSafeEqual(expectedBuffer, signatureBuffer)) {
+    throw new AppError('Invalid Razorpay signature', StatusCodes.UNAUTHORIZED);
+  }
+};
+
+const extractInstitutionId = (payload: any) => (
+  payload?.payload?.subscription?.entity?.notes?.institutionId
+  ?? payload?.payload?.payment?.entity?.notes?.institutionId
+  ?? payload?.payload?.invoice?.entity?.notes?.institutionId
+  ?? null
+);
 
 export const listPlans = async () => getBillingPlans();
 
@@ -125,4 +150,41 @@ export const createCheckout = async (context: BillingContext, input: CheckoutInp
     plan: input.plan,
     interval: input.interval,
   };
+};
+
+export const handleWebhook = async (rawBody: string, signature?: string) => {
+  verifyWebhookSignature(rawBody, signature);
+
+  const payload = JSON.parse(rawBody);
+  const eventType = String(payload.event ?? 'unknown');
+  const providerEventId = payload.id ? String(payload.id) : undefined;
+  const institutionId = extractInstitutionId(payload);
+
+  if (providerEventId) {
+    const existing = await prisma.billingEvent.findUnique({ where: { providerEventId } });
+    if (existing) {
+      return { received: true, duplicate: true, eventType };
+    }
+  }
+
+  await prisma.billingEvent.create({
+    data: {
+      institutionId,
+      provider: 'razorpay',
+      eventType,
+      providerEventId,
+      payload: payload as Prisma.InputJsonValue,
+      processedAt: new Date(),
+    },
+  });
+
+  await writeAuditLog({
+    institutionId,
+    action: 'BILLING_WEBHOOK_RECEIVED',
+    entityType: 'BillingEvent',
+    entityId: providerEventId,
+    metadata: { eventType },
+  }).catch(() => undefined);
+
+  return { received: true, duplicate: false, eventType };
 };
