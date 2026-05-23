@@ -32,15 +32,21 @@ interface SidebarItem {
   icon: React.ElementType;
 }
 
+const THEME_STORAGE_KEY = 'attendance_tracker_theme';
+
+const getInitialTheme = (): 'light' | 'dark' => {
+  const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+  if (savedTheme === 'dark' || savedTheme === 'light') return savedTheme;
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+};
+
 export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => (
-    localStorage.getItem('attendance_tracker_theme') === 'dark' ? 'dark' : 'light'
-  ));
+  const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme);
 
   const superAdminItems: SidebarItem[] = [
     { label: 'Platform', path: '/platform', icon: Building2 },
@@ -121,8 +127,10 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
   };
 
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-    localStorage.setItem('attendance_tracker_theme', theme);
+    const root = document.documentElement;
+    root.classList.remove(theme === 'dark' ? 'light' : 'dark');
+    root.classList.add(theme);
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [theme]);
 
   useEffect(() => {
@@ -237,11 +245,12 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
             <h2 className="text-lg sm:text-xl font-bold text-slate-900 truncate dark:text-slate-100">{getPageTitle()}</h2>
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              onClick={() => setTheme((current) => current === 'dark' ? 'light' : 'dark')}
               className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
               aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
             >
               {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
             </button>
