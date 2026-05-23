@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Building2, Clipboard, Eye, EyeOff, Loader2, Plus, Search, ShieldCheck, Sparkles, Users } from 'lucide-react';
+import { Building2, Clipboard, Eye, EyeOff, KeyRound, Loader2, Plus, Search, ShieldCheck, Sparkles, Users } from 'lucide-react';
 import { toast } from 'sonner';
+import { forgotPasswordRequest } from '../api/auth';
 import { createInstitution, createInstitutionAdmin, getPlatformDashboard, Institution, InstitutionPayload, listInstitutions, updateInstitution, PlatformDashboardData, SubscriptionPlan, SubscriptionStatus } from '../api/platform';
 
 const emptyForm: InstitutionPayload = {
@@ -53,6 +54,7 @@ export const PlatformDashboard: React.FC = () => {
   const [form, setForm] = useState<InstitutionPayload>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [adminForm, setAdminForm] = useState({ institutionId: '', name: '', email: '', password: generateTemporaryPassword() });
+  const [resetEmailByInstitution, setResetEmailByInstitution] = useState<Record<string, string>>({});
   const [lastOnboarding, setLastOnboarding] = useState<{ institutionCode: string; email: string; password: string } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -61,6 +63,7 @@ export const PlatformDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [resettingId, setResettingId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -156,6 +159,20 @@ export const PlatformDashboard: React.FC = () => {
     }
   };
 
+  const sendResetLink = async (institution: Institution) => {
+    const email = (resetEmailByInstitution[institution.id] ?? '').trim();
+    if (!email) return toast.error('Enter the institution admin email first.');
+    setResettingId(institution.id);
+    try {
+      await forgotPasswordRequest(email);
+      toast.success(`Password reset link requested for ${email}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to request reset link');
+    } finally {
+      setResettingId(null);
+    }
+  };
+
   const submitAdmin = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!adminForm.institutionId) return toast.error('Select an institution first');
@@ -165,6 +182,7 @@ export const PlatformDashboard: React.FC = () => {
       await createInstitutionAdmin(adminForm.institutionId, { name: adminForm.name, email: adminForm.email, password: adminForm.password });
       const institutionCode = selectedInstitution?.code ?? '';
       setLastOnboarding({ institutionCode, email: adminForm.email, password: adminForm.password });
+      setResetEmailByInstitution((current) => ({ ...current, [adminForm.institutionId]: adminForm.email }));
       toast.success('Institution admin created');
       setAdminForm({ institutionId: '', name: '', email: '', password: generateTemporaryPassword() });
       await load();
@@ -278,8 +296,8 @@ export const PlatformDashboard: React.FC = () => {
             </div>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase text-slate-500 dark:bg-slate-950"><tr><th className="p-4">Institution</th><th className="p-4">Plan</th><th className="p-4">Status</th><th className="p-4">Usage</th><th className="p-4">Limits</th><th className="p-4">Action</th></tr></thead>
+            <table className="w-full min-w-[1180px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase text-slate-500 dark:bg-slate-950"><tr><th className="p-4">Institution</th><th className="p-4">Plan</th><th className="p-4">Status</th><th className="p-4">Usage</th><th className="p-4">Admin Reset</th><th className="p-4">Action</th></tr></thead>
               <tbody>
                 {filteredInstitutions.map((item) => {
                   const students = item._count?.students ?? 0;
@@ -296,7 +314,12 @@ export const PlatformDashboard: React.FC = () => {
                           <p>Users {item._count?.users ?? 0}</p>
                         </div>
                       </td>
-                      <td className="p-4 text-xs font-bold text-slate-500">Students {item.studentLimit}<br />Teachers {item.teacherLimit}<br />Staff {item.staffLimit}</td>
+                      <td className="p-4">
+                        <div className="flex min-w-[250px] gap-2">
+                          <input type="email" value={resetEmailByInstitution[item.id] ?? ''} onChange={(event) => setResetEmailByInstitution((current) => ({ ...current, [item.id]: event.target.value }))} placeholder="admin@email.com" className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold dark:border-slate-700 dark:bg-slate-950" />
+                          <button disabled={resettingId === item.id} onClick={() => void sendResetLink(item)} className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-3 py-2 text-xs font-black text-amber-700 hover:bg-amber-100 disabled:opacity-60 dark:bg-amber-950/40 dark:text-amber-300"><KeyRound size={14} /> {resettingId === item.id ? 'Sending...' : 'Reset'}</button>
+                        </div>
+                      </td>
                       <td className="p-4">
                         <div className="flex flex-wrap gap-2">
                           <button onClick={() => startEdit(item)} className="rounded-lg bg-slate-100 px-3 py-2 font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-200">Edit</button>
