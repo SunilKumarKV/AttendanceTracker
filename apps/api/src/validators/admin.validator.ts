@@ -76,17 +76,17 @@ export const subjectSchema = z.object({
 export const subjectUpdateSchema = subjectSchema.partial();
 
 export const assignmentSchema = z.object({
-  professorId: z.string().trim().min(1),
+  professorId: z.string().trim().optional(),
+  teacherId: z.string().trim().optional(),
   professorProfileId: z.string().trim().optional().nullable(),
   courseId: z.string().trim().min(1),
   subjectId: z.string().trim().min(1),
   semesterId: z.string().trim().optional().nullable(),
   sectionId: z.string().trim().optional().nullable(),
   isActive: z.boolean().optional(),
-});
+}).transform((data) => ({ ...data, professorId: data.professorId ?? data.teacherId }));
 
 export const assignmentUpdateSchema = assignmentSchema.partial();
-
 
 export const holidaySchema = z.object({
   date: z.string().trim().min(1),
