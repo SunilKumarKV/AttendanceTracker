@@ -15,3 +15,16 @@ export const currentBilling = async (request: Request, response: Response) => {
 
   response.status(StatusCodes.OK).json({ success: true, data });
 };
+
+export const checkout = async (request: Request, response: Response) => {
+  const data = await billingService.createCheckout({
+    userId: request.auth?.userId,
+    role: request.auth?.role,
+    institutionId: request.auth?.institutionId,
+  }, {
+    plan: request.body.plan,
+    interval: request.body.interval ?? 'monthly',
+  });
+
+  response.status(StatusCodes.CREATED).json({ success: true, data });
+};
