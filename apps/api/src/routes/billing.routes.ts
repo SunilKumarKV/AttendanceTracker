@@ -7,3 +7,4 @@ export const billingRouter: ExpressRouter = Router();
 
 billingRouter.get('/billing/plans', asyncHandler(billingController.listPlans));
 billingRouter.get('/billing/current', authenticate, asyncHandler(billingController.currentBilling));
+billingRouter.post('/billing/checkout', authenticate, asyncHandler(billingController.checkout));
