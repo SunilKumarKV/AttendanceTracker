@@ -28,3 +28,10 @@ export const checkout = async (request: Request, response: Response) => {
 
   response.status(StatusCodes.CREATED).json({ success: true, data });
 };
+
+export const webhook = async (request: Request, response: Response) => {
+  const rawBody = Buffer.isBuffer(request.body) ? request.body.toString('utf8') : JSON.stringify(request.body ?? {});
+  const signature = request.get('x-razorpay-signature') ?? undefined;
+  const data = await billingService.handleWebhook(rawBody, signature);
+  response.status(StatusCodes.OK).json({ success: true, data });
+};
