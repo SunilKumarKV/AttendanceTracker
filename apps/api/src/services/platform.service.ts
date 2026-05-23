@@ -80,7 +80,7 @@ const institutionData = (data: any): Prisma.InstitutionUncheckedCreateInput => {
 export const createInstitution = async (context: PlatformContext, data: any) => {
   assertSuperAdmin(context);
   const created = await prisma.institution.create({ data: institutionData(data) });
-  await writeAuditLog({ actorId: context.userId, institutionId: created.id, action: 'CREATE_INSTITUTION', entityType: 'Institution', entityId: created.id, metadata: { code: created.code } }).catch(() => undefined);
+  await writeAuditLog({ actorId: context.userId, institutionId: created.id, action: 'INSTITUTION_CREATED', entityType: 'Institution', entityId: created.id, metadata: { code: created.code } }).catch(() => undefined);
   return created;
 };
 
@@ -107,7 +107,12 @@ export const updateInstitution = async (context: PlatformContext, id: string, da
     isActive: data.isActive,
   };
   const updated = await prisma.institution.update({ where: { id }, data: patch });
-  await writeAuditLog({ actorId: context.userId, institutionId: id, action: 'UPDATE_INSTITUTION', entityType: 'Institution', entityId: id, metadata: data }).catch(() => undefined);
+  const lifecycleAction = data.isActive === false
+    ? 'INSTITUTION_SUSPENDED'
+    : data.isActive === true && current.isActive === false
+      ? 'INSTITUTION_ACTIVATED'
+      : 'INSTITUTION_UPDATED';
+  await writeAuditLog({ actorId: context.userId, institutionId: id, action: lifecycleAction, entityType: 'Institution', entityId: id, metadata: data }).catch(() => undefined);
   return updated;
 };
 
@@ -120,7 +125,7 @@ export const createInstitutionAdmin = async (context: PlatformContext, instituti
     data: { institutionId, name: data.name, email: data.email, passwordHash, role: Role.ADMIN, isActive: true },
     select: { id: true, institutionId: true, name: true, email: true, role: true, isActive: true, createdAt: true },
   });
-  await writeAuditLog({ actorId: context.userId, institutionId, action: 'CREATE_INSTITUTION_ADMIN', entityType: 'User', entityId: admin.id, metadata: { email: admin.email } }).catch(() => undefined);
+  await writeAuditLog({ actorId: context.userId, institutionId, action: 'INSTITUTION_ADMIN_CREATED', entityType: 'User', entityId: admin.id, metadata: { email: admin.email } }).catch(() => undefined);
   return admin;
 };
 
