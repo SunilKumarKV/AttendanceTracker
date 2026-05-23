@@ -39,10 +39,26 @@ export interface CurrentBilling {
   };
 }
 
+export interface BillingCheckoutResponse {
+  provider: 'razorpay';
+  keyId: string;
+  subscriptionId: string;
+  shortUrl?: string;
+  plan: BillingPlan['code'];
+  interval: 'monthly' | 'annual';
+}
+
 export const getBillingPlans = async () => (
   apiClient<{ success: boolean; data: BillingPlan[] }>('/billing/plans')
 );
 
 export const getCurrentBilling = async () => (
   apiClient<{ success: boolean; data: CurrentBilling }>('/billing/current')
+);
+
+export const createBillingCheckout = async (plan: BillingPlan['code'], interval: 'monthly' | 'annual') => (
+  apiClient<{ success: boolean; data: BillingCheckoutResponse }>('/billing/checkout', {
+    method: 'POST',
+    body: JSON.stringify({ plan, interval }),
+  })
 );
