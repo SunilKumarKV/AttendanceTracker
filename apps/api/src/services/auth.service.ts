@@ -44,6 +44,22 @@ const toPublicUser = (user: PublicUser) => ({
   role: user.role,
 });
 
+const deviceLabelFromUserAgent = (userAgent?: string) => {
+  if (!userAgent) return 'Unknown device';
+  const browser = userAgent.includes('Edg/') ? 'Edge'
+    : userAgent.includes('Chrome/') ? 'Chrome'
+      : userAgent.includes('Safari/') && !userAgent.includes('Chrome/') ? 'Safari'
+        : userAgent.includes('Firefox/') ? 'Firefox'
+          : 'Browser';
+  const os = userAgent.includes('Mac OS X') ? 'macOS'
+    : userAgent.includes('Windows') ? 'Windows'
+      : userAgent.includes('Android') ? 'Android'
+        : userAgent.includes('iPhone') || userAgent.includes('iPad') ? 'iOS'
+          : userAgent.includes('Linux') ? 'Linux'
+            : 'Device';
+  return `${browser} on ${os}`;
+};
+
 const signAccessToken = (user: PublicUser) => {
   const options: SignOptions = {
     expiresIn: env.jwtAccessExpiresIn as SignOptions['expiresIn'],
@@ -59,7 +75,7 @@ const signAccessToken = (user: PublicUser) => {
   });
 };
 
-const persistRefreshToken = async (userId: string) => {
+const persistRefreshToken = async (userId: string, meta: RequestMeta = {}) => {
   const refreshToken = createRefreshTokenValue();
 
   await prisma.refreshToken.create({
@@ -67,6 +83,10 @@ const persistRefreshToken = async (userId: string) => {
       userId,
       tokenHash: hashToken(refreshToken),
       expiresAt: getRefreshExpiry(),
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+      deviceLabel: deviceLabelFromUserAgent(meta.userAgent),
+      lastUsedAt: new Date(),
     },
   });
 
@@ -134,6 +154,7 @@ export const login = async (email: string, password: string, meta: RequestMeta =
     institutionId: user.institutionId,
     action: 'LOGIN_SUCCESS',
     entityType: 'Auth',
+    metadata: { deviceLabel: deviceLabelFromUserAgent(meta.userAgent) },
     ipAddress: meta.ipAddress,
     userAgent: meta.userAgent,
   }).catch(() => undefined);
@@ -144,11 +165,11 @@ export const login = async (email: string, password: string, meta: RequestMeta =
   return {
     user: publicUser,
     accessToken: signAccessToken(publicUser),
-    refreshToken: await persistRefreshToken(user.id),
+    refreshToken: await persistRefreshToken(user.id, meta),
   };
 };
 
-export const refresh = async (refreshToken: string) => {
+export const refresh = async (refreshToken: string, meta: RequestMeta = {}) => {
   const tokenHash = hashToken(refreshToken);
   const storedToken = await prisma.refreshToken.findUnique({
     where: { tokenHash },
@@ -161,7 +182,7 @@ export const refresh = async (refreshToken: string) => {
 
   await prisma.refreshToken.update({
     where: { id: storedToken.id },
-    data: { revokedAt: new Date() },
+    data: { revokedAt: new Date(), lastUsedAt: new Date() },
   });
 
   const publicUser = toPublicUser(storedToken.user);
@@ -169,7 +190,10 @@ export const refresh = async (refreshToken: string) => {
   return {
     user: publicUser,
     accessToken: signAccessToken(publicUser),
-    refreshToken: await persistRefreshToken(storedToken.userId),
+    refreshToken: await persistRefreshToken(storedToken.userId, {
+      ipAddress: meta.ipAddress ?? storedToken.ipAddress ?? undefined,
+      userAgent: meta.userAgent ?? storedToken.userAgent ?? undefined,
+    }),
   };
 };
 
@@ -181,7 +205,7 @@ export const logout = async (refreshToken?: string, userId?: string, meta: Reque
         ...(userId ? { userId } : {}),
         revokedAt: null,
       },
-      data: { revokedAt: new Date() },
+      data: { revokedAt: new Date(), lastUsedAt: new Date() },
     });
     if (userId) {
       const user = await prisma.user.findUnique({ where: { id: userId }, select: { institutionId: true } });
@@ -193,7 +217,7 @@ export const logout = async (refreshToken?: string, userId?: string, meta: Reque
   if (userId) {
     await prisma.refreshToken.updateMany({
       where: { userId, revokedAt: null },
-      data: { revokedAt: new Date() },
+      data: { revokedAt: new Date(), lastUsedAt: new Date() },
     });
   }
 };
@@ -263,7 +287,7 @@ export const resetPassword = async (token: string, newPassword: string, meta: Re
     }),
     prisma.refreshToken.updateMany({
       where: { userId: resetToken.userId, revokedAt: null },
-      data: { revokedAt: new Date() },
+      data: { revokedAt: new Date(), lastUsedAt: new Date() },
     }),
   ]);
 
@@ -301,7 +325,7 @@ export const changePassword = async (userId: string, currentPassword: string, ne
     }),
     prisma.refreshToken.updateMany({
       where: { userId: user.id, revokedAt: null },
-      data: { revokedAt: new Date() },
+      data: { revokedAt: new Date(), lastUsedAt: new Date() },
     }),
   ]);
   await writeAuditLog({ actorId: user.id, institutionId: user.institutionId, action: 'PASSWORD_CHANGE', entityType: 'User', entityId: user.id }).catch(() => undefined);
