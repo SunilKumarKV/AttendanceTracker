@@ -43,6 +43,11 @@ const ActiveSessions = lazy(() =>
     default: module.ActiveSessions,
   }))
 );
+const BillingDashboard = lazy(() =>
+  import('./components/billing/BillingDashboard').then((module) => ({
+    default: module.BillingDashboard,
+  }))
+);
 
 const StudentDashboard = lazy(() => import('./components/StudentDashboard').then((module) => ({ default: module.StudentDashboard })));
 const StudentProfile = lazy(() => import('./components/StudentProfile').then((module) => ({ default: module.StudentProfile })));
@@ -118,7 +123,14 @@ export default function App() {
     </ProtectedRoute>
   }
 />
-
+<Route
+  path="/billing"
+  element={
+    <RoleRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
+      <BillingDashboard />
+    </RoleRoute>
+  }
+/>
           <Route
             path="/dashboard"
             element={

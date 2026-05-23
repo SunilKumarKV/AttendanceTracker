@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Building2,
+  CreditCard,
   LayoutDashboard, 
   UserCheck, 
   Users, 
@@ -51,6 +52,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
   const superAdminItems: SidebarItem[] = [
     { label: 'Platform', path: '/platform', icon: Building2 },
     { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { label: 'Billing', path: '/billing', icon: CreditCard },
     { label: 'Security Logs', path: '/platform/audit-logs', icon: ShieldCheck },
     { label: 'Settings', path: '/settings', icon: Settings },
     { label: 'Active Sessions', path: '/security/sessions', icon: ShieldCheck },
@@ -58,6 +60,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
 
   const adminItems: SidebarItem[] = [
     { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { label: 'Billing', path: '/billing', icon: CreditCard },
     { label: 'Students', path: '/students', icon: Users },
     { label: 'Academics', path: '/academics', icon: GraduationCap },
     { label: 'Academic Ops', path: '/academic-operations', icon: CalendarDays },
