@@ -85,3 +85,8 @@ export const webhook = async (request: Request, response: Response) => {
   const data = await billingService.handleWebhook(rawBody, signature);
   response.status(StatusCodes.OK).json({ success: true, data });
 };
+
+export const health = async (request: Request, response: Response) => {
+  const data = await billingService.getBillingHealth(billingContext(request));
+  response.status(StatusCodes.OK).json({ success: true, data });
+};

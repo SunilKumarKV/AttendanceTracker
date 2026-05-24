@@ -469,6 +469,66 @@ export const enforceBillingDunning = async (context: BillingContext) => {
   };
 };
 
+export const getBillingHealth = async (context: BillingContext) => {
+  assertSuperAdmin(context);
+
+  const now = new Date();
+
+  const [
+    failedWebhooks,
+    processedWebhooks,
+    pastDueInstitutions,
+    expiredTrialCandidates,
+    recentFailedInvoices,
+    recentInvoices,
+  ] = await Promise.all([
+    prisma.billingEvent.count({
+      where: { provider: 'razorpay', processedAt: null },
+    }),
+    prisma.billingEvent.count({
+      where: { provider: 'razorpay', processedAt: { not: null } },
+    }),
+    prisma.institution.count({
+      where: {
+        subscriptionStatus: SubscriptionStatus.PAST_DUE,
+        isActive: true,
+      },
+    }),
+    prisma.institution.count({
+      where: {
+        subscriptionPlan: SubscriptionPlan.FREE_TRIAL,
+        subscriptionStatus: { in: [SubscriptionStatus.TRIALING, SubscriptionStatus.ACTIVE] },
+        trialEndsAt: { lt: now },
+        isActive: true,
+      },
+    }),
+    prisma.billingInvoice.findMany({
+      where: {
+        provider: 'razorpay',
+        status: { contains: 'failed', mode: 'insensitive' },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    }),
+    prisma.billingInvoice.findMany({
+      where: { provider: 'razorpay' },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    }),
+  ]);
+
+  return {
+    summary: {
+      failedWebhooks,
+      processedWebhooks,
+      pastDueInstitutions,
+      expiredTrialCandidates,
+    },
+    recentFailedInvoices,
+    recentInvoices,
+  };
+};
+
 export const handleWebhook = async (rawBody: string, signature?: string) => {
   verifyWebhookSignature(rawBody, signature);
 

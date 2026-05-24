@@ -9,6 +9,7 @@ billingRouter.get('/billing/plans', asyncHandler(billingController.listPlans));
 billingRouter.get('/billing/current', authenticate, asyncHandler(billingController.currentBilling));
 billingRouter.get('/billing/invoices', authenticate, asyncHandler(billingController.invoices));
 billingRouter.get('/billing/webhooks/failed', authenticate, asyncHandler(billingController.failedWebhooks));
+billingRouter.get('/billing/health', authenticate, asyncHandler(billingController.health));
 billingRouter.post('/billing/checkout', authenticate, asyncHandler(billingController.checkout));
 billingRouter.post('/billing/cancel', authenticate, asyncHandler(billingController.cancelSubscription));
 billingRouter.post('/billing/resume', authenticate, asyncHandler(billingController.resumeSubscription));
