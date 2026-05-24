@@ -48,6 +48,7 @@ const BillingDashboard = lazy(() =>
     default: module.BillingDashboard,
   }))
 );
+import { BillingHealthDashboard } from './components/billing/BillingHealthDashboard';
 
 const StudentDashboard = lazy(() => import('./components/StudentDashboard').then((module) => ({ default: module.StudentDashboard })));
 const StudentProfile = lazy(() => import('./components/StudentProfile').then((module) => ({ default: module.StudentProfile })));
@@ -131,6 +132,7 @@ export default function App() {
     </RoleRoute>
   }
 />
+<Route path="/billing/health" element={<BillingHealthDashboard />} />
           <Route
             path="/dashboard"
             element={

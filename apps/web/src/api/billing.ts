@@ -67,6 +67,47 @@ export interface BillingCheckoutResponse {
   interval: 'monthly' | 'annual';
 }
 
+export interface BillingEvent {
+  id: string;
+  provider: string;
+  eventType: string;
+  providerEventId?: string | null;
+  payload: unknown;
+  processedAt?: string | null;
+  createdAt: string;
+}
+
+export interface BillingHealth {
+  summary: {
+    failedWebhooks: number;
+    processedWebhooks: number;
+    pastDueInstitutions: number;
+    expiredTrialCandidates: number;
+  };
+  recentFailedInvoices: BillingInvoice[];
+  recentInvoices: BillingInvoice[];
+}
+
+export const getBillingHealth = async () => (
+  apiClient<{ success: boolean; data: BillingHealth }>('/billing/health')
+);
+
+export const getFailedBillingWebhooks = async () => (
+  apiClient<{ success: boolean; data: BillingEvent[] }>('/billing/webhooks/failed')
+);
+
+export const retryBillingWebhook = async (billingEventId: string) => (
+  apiClient<{ success: boolean; data: unknown }>(`/billing/webhooks/retry/${billingEventId}`, {
+    method: 'POST',
+  })
+);
+
+export const enforceBillingDunning = async () => (
+  apiClient<{ success: boolean; data: unknown }>('/billing/dunning/enforce', {
+    method: 'POST',
+  })
+);
+
 export const getBillingPlans = async () => (
   apiClient<{ success: boolean; data: BillingPlan[] }>('/billing/plans')
 );
