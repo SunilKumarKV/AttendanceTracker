@@ -42,6 +42,16 @@ export const resumeSubscription = async (request: Request, response: Response) =
   response.status(StatusCodes.OK).json({ success: true, data });
 };
 
+export const failedWebhooks = async (request: Request, response: Response) => {
+  const data = await billingService.listFailedWebhooks(billingContext(request));
+  response.status(StatusCodes.OK).json({ success: true, data });
+};
+
+export const retryWebhook = async (request: Request, response: Response) => {
+  const data = await billingService.retryFailedWebhook(billingContext(request), request.params.billingEventId);
+  response.status(StatusCodes.OK).json({ success: true, data });
+};
+
 export const webhook = async (request: Request, response: Response) => {
   if (!Buffer.isBuffer(request.body)) {
     throw new Error('Webhook route requires raw body middleware');
