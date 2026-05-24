@@ -15,6 +15,8 @@ import { toast, Toaster } from 'sonner';
 import { Course, getAcademicResource, Section, Semester, createStudent, deleteStudent, getStudents, importStudentsFile, StudentImportResult, updateStudent } from '../api/admin';
 import { ConfirmDialog, EmptyState, ErrorState, Pagination, TableSkeleton } from './common';
 import { Student } from '../types';
+import { useNavigate } from 'react-router-dom';
+import { isPaymentRequiredError } from '../api/client';
 import { useDebounce } from '../hooks';
 
 const emptyStudent: Student = {
@@ -54,6 +56,22 @@ export const Students: React.FC = () => {
   const [total, setTotal] = useState(0);
   const pageSize = 10;
   const debouncedSearch = useDebounce(searchQuery, 300);
+  const navigate = useNavigate();
+
+  const showBillingError = (err: unknown, fallback: string) => {
+    if (isPaymentRequiredError(err)) {
+      toast.error(err instanceof Error ? err.message : fallback, {
+        action: {
+          label: 'Go to Billing',
+          onClick: () => navigate('/billing'),
+        },
+      });
+      return;
+    }
+
+    toast.error(err instanceof Error ? err.message : fallback);
+  };
+  const navigate = useNavigate();
 
   const fetchStudents = useCallback(async (search = debouncedSearch, nextPage = page) => {
     setLoading(true);
@@ -142,7 +160,7 @@ export const Students: React.FC = () => {
       resetForm();
       await fetchStudents();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not save student.');
+      showBillingError(err, 'Could not save student.');
     } finally {
       setIsSubmitting(false);
     }
@@ -204,7 +222,7 @@ export const Students: React.FC = () => {
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not import students.');
+      showBillingError(err, 'Could not import students.');
     } finally {
       setIsImporting(false);
     }
