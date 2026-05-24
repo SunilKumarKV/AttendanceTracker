@@ -73,10 +73,17 @@ const planFromNotes = (payload: any): SubscriptionPlan | null => {
 const dateFromUnix = (value: unknown) => (typeof value === 'number' ? new Date(value * 1000) : undefined);
 
 const isBillingAdmin = (role?: Role) => role === Role.ADMIN || role === Role.SUPER_ADMIN;
+const isSuperAdmin = (role?: Role) => role === Role.SUPER_ADMIN;
 
 const assertBillingAdmin = (context: BillingContext) => {
   if (!isBillingAdmin(context.role)) {
     throw new AppError('Admin access required', StatusCodes.FORBIDDEN);
+  }
+};
+
+const assertSuperAdmin = (context: BillingContext) => {
+  if (!isSuperAdmin(context.role)) {
+    throw new AppError('Super admin access required', StatusCodes.FORBIDDEN);
   }
 };
 
@@ -192,6 +199,14 @@ const syncBillingInvoice = async (payload: any, eventType: string, institutionId
   }).catch(() => undefined);
 
   return true;
+};
+
+const processWebhookPayload = async (payload: any) => {
+  const eventType = String(payload.event ?? 'unknown');
+  const institutionId = extractInstitutionId(payload);
+  const synced = await syncInstitutionSubscription(payload, eventType, institutionId);
+  const invoiceSynced = await syncBillingInvoice(payload, eventType, institutionId);
+  return { eventType, institutionId, synced, invoiceSynced };
 };
 
 export const listPlans = async () => getBillingPlans();
@@ -335,6 +350,56 @@ export const resumeSubscription = async (context: BillingContext) => {
   throw new AppError('To resume, create a new checkout subscription.', StatusCodes.BAD_REQUEST);
 };
 
+export const listFailedWebhooks = async (context: BillingContext) => {
+  assertSuperAdmin(context);
+  return prisma.billingEvent.findMany({
+    where: { provider: 'razorpay', processedAt: null },
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+  });
+};
+
+export const retryFailedWebhook = async (context: BillingContext, billingEventId: string) => {
+  assertSuperAdmin(context);
+  const failedEvent = await prisma.billingEvent.findUnique({ where: { id: billingEventId } });
+  if (!failedEvent) throw new AppError('Billing event not found', StatusCodes.NOT_FOUND);
+  if (failedEvent.processedAt) throw new AppError('Billing event is already processed', StatusCodes.BAD_REQUEST);
+
+  const payload = failedEvent.payload as any;
+  const originalPayload = { ...payload };
+  delete originalPayload._processing;
+
+  const result = await processWebhookPayload(originalPayload);
+
+  await prisma.billingEvent.update({
+    where: { id: billingEventId },
+    data: {
+      processedAt: new Date(),
+      payload: {
+        ...originalPayload,
+        _processing: {
+          status: 'RETRIED_PROCESSED',
+          retriedAt: new Date().toISOString(),
+          retriedBy: context.userId,
+          synced: result.synced,
+          invoiceSynced: result.invoiceSynced,
+        },
+      } as Prisma.InputJsonValue,
+    },
+  });
+
+  await writeAuditLog({
+    actorId: context.userId,
+    institutionId: result.institutionId,
+    action: 'BILLING_WEBHOOK_RETRIED',
+    entityType: 'BillingEvent',
+    entityId: billingEventId,
+    metadata: result,
+  }).catch(() => undefined);
+
+  return { retried: true, ...result };
+};
+
 export const handleWebhook = async (rawBody: string, signature?: string) => {
   verifyWebhookSignature(rawBody, signature);
 
@@ -351,20 +416,18 @@ export const handleWebhook = async (rawBody: string, signature?: string) => {
   }
 
   try {
-    const synced = await syncInstitutionSubscription(payload, eventType, institutionId);
-    const invoiceSynced = await syncBillingInvoice(payload, eventType, institutionId);
-
-    await recordWebhookEvent(payload, eventType, providerEventId, institutionId, true, { status: 'PROCESSED', synced, invoiceSynced });
+    const result = await processWebhookPayload(payload);
+    await recordWebhookEvent(payload, eventType, providerEventId, institutionId, true, { status: 'PROCESSED', synced: result.synced, invoiceSynced: result.invoiceSynced });
 
     await writeAuditLog({
       institutionId,
       action: 'BILLING_WEBHOOK_RECEIVED',
       entityType: 'BillingEvent',
       entityId: providerEventId,
-      metadata: { eventType, synced, invoiceSynced, status: 'PROCESSED' },
+      metadata: { eventType, synced: result.synced, invoiceSynced: result.invoiceSynced, status: 'PROCESSED' },
     }).catch(() => undefined);
 
-    return { received: true, duplicate: false, eventType, synced, invoiceSynced, status: 'PROCESSED' };
+    return { received: true, duplicate: false, eventType, synced: result.synced, invoiceSynced: result.invoiceSynced, status: 'PROCESSED' };
   } catch (error) {
     const errorMessage = safeErrorMessage(error);
     await recordWebhookEvent(payload, eventType, providerEventId, institutionId, false, { status: 'FAILED', error: errorMessage });
