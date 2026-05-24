@@ -146,10 +146,10 @@ export const getInstitutionUsage = async (institutionId: string) => {
 
 export const assertWithinPlanLimit = async (institutionId: string, resource: 'students' | 'teachers' | 'staff') => {
   const { usage, limits, institution } = await getInstitutionUsage(institutionId);
-  if (!institution.isActive || ['CANCELLED', 'EXPIRED'].includes(institution.subscriptionStatus)) {
-    throw new AppError('Institution subscription is not active', StatusCodes.PAYMENT_REQUIRED);
+  if (!institution.isActive || ['CANCELLED', 'EXPIRED', 'PAST_DUE'].includes(institution.subscriptionStatus)) {
+    throw new AppError('Institution subscription is not active. Please update billing to continue.', StatusCodes.PAYMENT_REQUIRED);
   }
   if (usage[resource] >= limits[resource]) {
-    throw new AppError(`${resource} plan limit reached for this institution`, StatusCodes.FORBIDDEN);
+    throw new AppError(`${resource} plan limit reached for this institution`, StatusCodes.PAYMENT_REQUIRED);
   }
 };
