@@ -436,7 +436,7 @@ export const enforceBillingDunning = async (context: BillingContext) => {
   if (suspendedIds.length) {
     await prisma.institution.updateMany({
       where: { id: { in: suspendedIds } },
-      data: { subscriptionStatus: SubscriptionStatus.SUSPENDED, isActive: false },
+      data: { subscriptionStatus: SubscriptionStatus.EXPIRED, isActive: false },
     });
   }
 
@@ -455,7 +455,7 @@ export const enforceBillingDunning = async (context: BillingContext) => {
       action: 'BILLING_PAST_DUE_SUSPENDED',
       entityType: 'Institution',
       entityId: institutionId,
-      metadata: { enforcedAt: now.toISOString(), graceDays: PAYMENT_GRACE_DAYS },
+      metadata: { enforcedAt: now.toISOString(), graceDays: PAYMENT_GRACE_DAYS, finalStatus: 'EXPIRED' },
     }).catch(() => undefined)),
   ]);
 
