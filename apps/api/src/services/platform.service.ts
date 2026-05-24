@@ -21,6 +21,7 @@ const planLimits: Record<SubscriptionPlan, { students: number; teachers: number;
 };
 
 const cleanCode = (code: string) => code.trim().toUpperCase().replace(/[^A-Z0-9-]+/g, '-').replace(/^-|-$/g, '');
+const cleanEmail = (email: string) => email.trim().toLowerCase();
 
 export const listInstitutions = async (context: PlatformContext) => {
   assertSuperAdmin(context);
@@ -120,13 +121,50 @@ export const createInstitutionAdmin = async (context: PlatformContext, instituti
   assertSuperAdmin(context);
   const institution = await prisma.institution.findUnique({ where: { id: institutionId } });
   if (!institution) throw new AppError('Institution not found', StatusCodes.NOT_FOUND);
+
+  const email = cleanEmail(String(data.email ?? ''));
+  const existingUser = await prisma.user.findUnique({ where: { email } });
+  if (existingUser) {
+    throw new AppError('A user with this email already exists. Please use another email address.', StatusCodes.CONFLICT);
+  }
+
   const passwordHash = await bcrypt.hash(data.password, 12);
   const admin = await prisma.user.create({
-    data: { institutionId, name: data.name, email: data.email, passwordHash, role: Role.ADMIN, isActive: true },
+    data: { institutionId, name: String(data.name).trim(), email, passwordHash, role: Role.ADMIN, isActive: true },
     select: { id: true, institutionId: true, name: true, email: true, role: true, isActive: true, createdAt: true },
   });
   await writeAuditLog({ actorId: context.userId, institutionId, action: 'INSTITUTION_ADMIN_CREATED', entityType: 'User', entityId: admin.id, metadata: { email: admin.email } }).catch(() => undefined);
   return admin;
+};
+
+export const resetPlatformUserPassword = async (context: PlatformContext, userId: string, password: string) => {
+  assertSuperAdmin(context);
+  const cleanPassword = String(password ?? '');
+  if (cleanPassword.length < 8) {
+    throw new AppError('Password must be at least 8 characters.', StatusCodes.BAD_REQUEST);
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, institutionId: true, email: true, role: true },
+  });
+  if (!user) throw new AppError('User not found', StatusCodes.NOT_FOUND);
+  if (![Role.ADMIN, Role.HOD, Role.TEACHER, Role.PROFESSOR, Role.STAFF].includes(user.role)) {
+    throw new AppError('This user password cannot be reset from platform admin.', StatusCodes.BAD_REQUEST);
+  }
+
+  const passwordHash = await bcrypt.hash(cleanPassword, 12);
+  await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+  await writeAuditLog({
+    actorId: context.userId,
+    institutionId: user.institutionId,
+    action: 'PLATFORM_USER_PASSWORD_RESET',
+    entityType: 'User',
+    entityId: user.id,
+    metadata: { email: user.email, role: user.role },
+  }).catch(() => undefined);
+
+  return { id: user.id, email: user.email, role: user.role };
 };
 
 export const getInstitutionUsage = async (institutionId: string) => {
