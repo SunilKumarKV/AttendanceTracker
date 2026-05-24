@@ -8,6 +8,8 @@ import { prisma } from '../config/prisma.js';
 import { AppError } from '../utils/AppError.js';
 import { writeAuditLog } from './audit.service.js';
 
+const PAYMENT_GRACE_DAYS = 7;
+
 interface BillingContext {
   userId?: string;
   role?: Role;
@@ -71,6 +73,7 @@ const planFromNotes = (payload: any): SubscriptionPlan | null => {
 };
 
 const dateFromUnix = (value: unknown) => (typeof value === 'number' ? new Date(value * 1000) : undefined);
+const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
 const isBillingAdmin = (role?: Role) => role === Role.ADMIN || role === Role.SUPER_ADMIN;
 const isSuperAdmin = (role?: Role) => role === Role.SUPER_ADMIN;
@@ -398,6 +401,72 @@ export const retryFailedWebhook = async (context: BillingContext, billingEventId
   }).catch(() => undefined);
 
   return { retried: true, ...result };
+};
+
+export const enforceBillingDunning = async (context: BillingContext) => {
+  assertSuperAdmin(context);
+  const now = new Date();
+  const overdueTrialInstitutions = await prisma.institution.findMany({
+    where: {
+      subscriptionPlan: SubscriptionPlan.FREE_TRIAL,
+      subscriptionStatus: { in: [SubscriptionStatus.TRIALING, SubscriptionStatus.ACTIVE] },
+      trialEndsAt: { lt: now },
+      isActive: true,
+    },
+  });
+
+  const pastDueInstitutions = await prisma.institution.findMany({
+    where: {
+      subscriptionStatus: SubscriptionStatus.PAST_DUE,
+      updatedAt: { lt: daysAgo(PAYMENT_GRACE_DAYS) },
+      isActive: true,
+    },
+  });
+
+  const expiredTrialIds = overdueTrialInstitutions.map((institution) => institution.id);
+  const suspendedIds = pastDueInstitutions.map((institution) => institution.id);
+
+  if (expiredTrialIds.length) {
+    await prisma.institution.updateMany({
+      where: { id: { in: expiredTrialIds } },
+      data: { subscriptionStatus: SubscriptionStatus.EXPIRED, isActive: false },
+    });
+  }
+
+  if (suspendedIds.length) {
+    await prisma.institution.updateMany({
+      where: { id: { in: suspendedIds } },
+      data: { subscriptionStatus: SubscriptionStatus.SUSPENDED, isActive: false },
+    });
+  }
+
+  await Promise.all([
+    ...expiredTrialIds.map((institutionId) => writeAuditLog({
+      actorId: context.userId,
+      institutionId,
+      action: 'BILLING_TRIAL_EXPIRED',
+      entityType: 'Institution',
+      entityId: institutionId,
+      metadata: { enforcedAt: now.toISOString() },
+    }).catch(() => undefined)),
+    ...suspendedIds.map((institutionId) => writeAuditLog({
+      actorId: context.userId,
+      institutionId,
+      action: 'BILLING_PAST_DUE_SUSPENDED',
+      entityType: 'Institution',
+      entityId: institutionId,
+      metadata: { enforcedAt: now.toISOString(), graceDays: PAYMENT_GRACE_DAYS },
+    }).catch(() => undefined)),
+  ]);
+
+  return {
+    enforcedAt: now,
+    graceDays: PAYMENT_GRACE_DAYS,
+    trialsExpired: expiredTrialIds.length,
+    pastDueSuspended: suspendedIds.length,
+    expiredTrialIds,
+    suspendedIds,
+  };
 };
 
 export const handleWebhook = async (rawBody: string, signature?: string) => {
