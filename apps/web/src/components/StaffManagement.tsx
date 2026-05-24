@@ -1,13 +1,16 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Download, Loader2, Plus, RefreshCcw, Save, Trash2, UserCog } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import { approveStaffLeave, createStaffMember, deleteStaffMember, downloadStaffReport, getStaffAttendance, getStaffLeaves, getStaffMembers, getStaffSummary, markStaffAttendance, rejectStaffLeave, StaffAttendanceRecord, StaffLeaveRequest, StaffMember, StaffSummary } from '../api/staff';
+import { isPaymentRequiredError } from '../api/client';
 import { ErrorState } from './common';
 
 const roleOptions = ['Office Staff', 'Lab In-charge', 'Accountant', 'Librarian', 'Non-teaching Staff'];
 const today = () => new Date().toISOString().slice(0, 10);
 
 export const StaffManagement: React.FC = () => {
+  const navigate = useNavigate();
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [attendance, setAttendance] = useState<StaffAttendanceRecord[]>([]);
   const [leaves, setLeaves] = useState<StaffLeaveRequest[]>([]);
@@ -17,6 +20,20 @@ export const StaffManagement: React.FC = () => {
   const [error, setError] = useState('');
   const [form, setForm] = useState({ name: '', email: '', employeeCode: '', staffRole: 'Office Staff', department: '', designation: '', phone: '', password: '' });
   const [attendanceForm, setAttendanceForm] = useState({ staffId: '', attendanceDate: today(), status: 'PRESENT', remarks: '' });
+
+  const showBillingError = (err: unknown, fallback: string) => {
+    if (isPaymentRequiredError(err)) {
+      toast.error(err instanceof Error ? err.message : fallback, {
+        action: {
+          label: 'Go to Billing',
+          onClick: () => navigate('/billing'),
+        },
+      });
+      return;
+    }
+
+    toast.error(err instanceof Error ? err.message : fallback);
+  };
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
@@ -37,7 +54,7 @@ export const StaffManagement: React.FC = () => {
       toast.success('Staff member added.');
       setForm({ name: '', email: '', employeeCode: '', staffRole: 'Office Staff', department: '', designation: '', phone: '', password: '' });
       await load();
-    } catch (err) { toast.error(err instanceof Error ? err.message : 'Could not add staff.'); }
+    } catch (err) { showBillingError(err, 'Could not add staff.'); }
     finally { setSaving(false); }
   };
 
