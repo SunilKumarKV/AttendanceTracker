@@ -25,6 +25,10 @@ export class ApiClientError extends Error implements ApiError {
   }
 }
 
+export const isPaymentRequiredError = (error: unknown) => (
+  error instanceof ApiClientError && error.status === 402
+);
+
 const getBaseUrl = () => {
   const rawBaseUrl = String(import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
   if (!rawBaseUrl) return '';
@@ -149,13 +153,17 @@ export const apiClient = async <T>(path: string, options: ApiClientOptions = {})
     const data = await parseResponse(response);
 
     if (!response.ok) {
-      const message = typeof data === 'object' && data
+      const serverMessage = typeof data === 'object' && data
         ? 'message' in data
           ? String(data.message)
           : 'error' in data && data.error && typeof data.error === 'object' && 'message' in data.error
             ? String(data.error.message)
             : 'Request failed'
         : 'Request failed';
+
+      const message = response.status === 402
+        ? `${serverMessage} Please upgrade your plan from Billing.`
+        : serverMessage;
 
       throw new ApiClientError({
         message,
