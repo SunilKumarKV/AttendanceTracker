@@ -138,23 +138,27 @@ export const deleteStaff = async (context: Context, id: string) => {
   await writeAuditLog({ actorId, institutionId, action: 'STAFF_DELETED', entityType: 'StaffProfile', entityId: id }).catch(() => undefined);
 };
 
-export const markStaffAttendance = async () => {
+export const markStaffAttendance = async (_context: Context, _body: any) => {
   throw new AppError('Staff attendance module is not enabled in this schema.', StatusCodes.NOT_IMPLEMENTED);
 };
 
-export const listStaffAttendance = async () => {
-  return { items: [], pagination: { page: 1, pageSize: 20, total: 0, totalPages: 0 } };
+export const listStaffAttendance = async (_context: Context, query: Record<string, unknown> = {}) => {
+  const page = Math.max(Number(query.page ?? 1), 1);
+  const pageSize = Math.min(Math.max(Number(query.pageSize ?? 20), 1), 100);
+  return { items: [], pagination: { page, pageSize, total: 0, totalPages: 0 } };
 };
 
-export const createStaffLeave = async () => {
+export const createStaffLeave = async (_context: Context, _body: any) => {
   throw new AppError('Staff leave module is not enabled in this schema.', StatusCodes.NOT_IMPLEMENTED);
 };
 
-export const listStaffLeaves = async () => {
-  return { items: [], pagination: { page: 1, pageSize: 20, total: 0, totalPages: 0 } };
+export const listStaffLeaves = async (_context: Context, query: Record<string, unknown> = {}) => {
+  const page = Math.max(Number(query.page ?? 1), 1);
+  const pageSize = Math.min(Math.max(Number(query.pageSize ?? 20), 1), 100);
+  return { items: [], pagination: { page, pageSize, total: 0, totalPages: 0 } };
 };
 
-export const reviewStaffLeave = async () => {
+export const reviewStaffLeave = async (_context: Context, _id: string, _approved: boolean, _adminNote?: string) => {
   throw new AppError('Staff leave review module is not enabled in this schema.', StatusCodes.NOT_IMPLEMENTED);
 };
 
@@ -178,7 +182,7 @@ export const getAdminStaffSummary = async (context: Context) => {
   return { totalStaff, presentToday: 0, absentToday: 0, pendingLeaves: 0 };
 };
 
-export const exportStaffReportRows = async (context: Context) => {
+export const exportStaffReportRows = async (context: Context, _query: Record<string, unknown> = {}) => {
   const institutionId = requireInstitution(context);
   const staff = await prisma.staffProfile.findMany({
     where: { institutionId, isActive: true },
