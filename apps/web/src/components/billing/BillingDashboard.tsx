@@ -14,6 +14,35 @@ import {
 
 const formatPrice = (amount: number) => amount === 0 ? 'Custom / Trial' : new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount / 100);
 const usagePercent = (used: number, total: number) => total <= 0 ? 0 : Math.min(100, Math.round((used / total) * 100));
+const getUsageWarning = (used: number, total: number) => {
+  const percent = usagePercent(used, total);
+
+  if (percent >= 100) {
+    return {
+      label: 'Limit reached',
+      message: 'You have reached this plan limit. Upgrade to continue adding more records.',
+      className: 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300',
+    };
+  }
+
+  if (percent >= 90) {
+    return {
+      label: 'Almost full',
+      message: 'You are above 90% usage. Upgrade soon to avoid blocked actions.',
+      className: 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/50 dark:bg-orange-950/30 dark:text-orange-300',
+    };
+  }
+
+  if (percent >= 80) {
+    return {
+      label: 'High usage',
+      message: 'You are above 80% usage. Consider upgrading your plan.',
+      className: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300',
+    };
+  }
+
+  return null;
+};
 const formatDate = (value?: string | null) => value ? new Date(value).toLocaleDateString() : '-';
 
 export const BillingDashboard: React.FC = () => {
@@ -145,21 +174,46 @@ export const BillingDashboard: React.FC = () => {
           </div>
 
           {[
-            ['Students', current.usage.students, current.limits.students],
-            ['Teachers', current.usage.teachers, current.limits.teachers],
-            ['Staff', current.usage.staff, current.limits.staff],
-          ].map(([label, used, total]) => (
-            <div key={label} className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-black text-slate-500">{label}</p>
-                <TrendingUp size={18} className="text-blue-600" />
-              </div>
-              <p className="mt-3 text-3xl font-black text-slate-900 dark:text-white">{used} / {total}</p>
-              <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                <div className="h-full rounded-full bg-blue-600" style={{ width: `${usagePercent(Number(used), Number(total))}%` }} />
-              </div>
-            </div>
-          ))}
+  ['Students', current.usage.students, current.limits.students],
+  ['Teachers', current.usage.teachers, current.limits.teachers],
+  ['Staff', current.usage.staff, current.limits.staff],
+].map(([label, used, total]) => {
+  const numericUsed = Number(used);
+  const numericTotal = Number(total);
+  const percent = usagePercent(numericUsed, numericTotal);
+  const warning = getUsageWarning(numericUsed, numericTotal);
+
+  return (
+    <div key={label} className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-black text-slate-500">{label}</p>
+        <TrendingUp size={18} className={percent >= 100 ? 'text-red-600' : percent >= 90 ? 'text-orange-600' : percent >= 80 ? 'text-amber-600' : 'text-blue-600'} />
+      </div>
+
+      <p className="mt-3 text-3xl font-black text-slate-900 dark:text-white">
+        {numericUsed} / {numericTotal}
+      </p>
+
+      <p className="mt-1 text-xs font-bold text-slate-500">
+        {percent}% used
+      </p>
+
+      <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+        <div
+          className={`h-full rounded-full ${percent >= 100 ? 'bg-red-600' : percent >= 90 ? 'bg-orange-500' : percent >= 80 ? 'bg-amber-500' : 'bg-blue-600'}`}
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+
+      {warning && (
+        <div className={`mt-4 rounded-2xl border p-3 text-xs font-bold ${warning.className}`}>
+          <p className="font-black">{warning.label}</p>
+          <p className="mt-1">{warning.message}</p>
+        </div>
+      )}
+    </div>
+  );
+})}
         </div>
       ) : (
         <div className="rounded-3xl border border-amber-100 bg-amber-50 p-5 text-sm font-bold text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
