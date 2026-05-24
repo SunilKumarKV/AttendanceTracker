@@ -4,6 +4,7 @@ import { StatusCodes } from 'http-status-codes';
 import { prisma } from '../config/prisma.js';
 import { AppError } from '../utils/AppError.js';
 import { writeAuditLog } from './audit.service.js';
+import { assertWithinPlanLimit } from './platform.service.js';
 
 export interface Context {
   userId?: string;
@@ -87,6 +88,10 @@ export const createStaff = async (context: Context, body: any) => {
     const user = await tx.user.create({
       data: { institutionId, name, email, passwordHash, role: Role.STAFF, isActive: body.isActive ?? true },
     });
+    const institutionId = requireInstitution(context);
+const actorId = requireUser(context);
+
+await assertWithinPlanLimit(institutionId, 'staff');
     return tx.staffProfile.create({
       data: {
         institutionId,

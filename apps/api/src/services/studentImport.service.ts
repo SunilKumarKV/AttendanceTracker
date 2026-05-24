@@ -5,6 +5,7 @@ import readXlsxFile from 'read-excel-file/node';
 import { prisma } from '../config/prisma.js';
 import { AppError } from '../utils/AppError.js';
 import { writeAuditLog } from './audit.service.js';
+import { assertWithinPlanLimit, getInstitutionUsage } from './platform.service.js';
 
 interface AdminContext {
   userId?: string;
@@ -203,6 +204,19 @@ export const importStudents = async (context: AdminContext, file: Express.Multer
       }
     }
   }
+
+  if (validRows.length > 0) {
+  const { usage, limits } = await getInstitutionUsage(institutionId);
+
+  await assertWithinPlanLimit(institutionId, 'students');
+
+  if (usage.students + validRows.length > limits.students) {
+    throw new AppError(
+      `Student import exceeds your plan limit. Current: ${usage.students}, importing: ${validRows.length}, limit: ${limits.students}. Please upgrade billing.`,
+      StatusCodes.PAYMENT_REQUIRED
+    );
+  }
+}
 
   let importedCount = 0;
   if (validRows.length > 0) {
