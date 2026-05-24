@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
+import { env } from '../config/env.js';
+import { AppError } from '../utils/AppError.js';
 import * as billingService from '../services/billing.service.js';
 
 const billingContext = (request: Request) => ({
@@ -30,6 +32,22 @@ export const checkout = async (request: Request, response: Response) => {
   });
 
   response.status(StatusCodes.CREATED).json({ success: true, data });
+};
+
+export const cronEnforceDunning = async (request: Request, response: Response) => {
+  const secret = request.get('x-cron-secret');
+
+  if (!env.billingCronSecret || secret !== env.billingCronSecret) {
+    throw new AppError('Invalid billing cron secret', StatusCodes.UNAUTHORIZED);
+  }
+
+  const data = await billingService.enforceBillingDunning({
+    userId: 'system:billing-cron',
+    role: 'SUPER_ADMIN' as any,
+    institutionId: null,
+  });
+
+  response.status(StatusCodes.OK).json({ success: true, data });
 };
 
 export const cancelSubscription = async (request: Request, response: Response) => {

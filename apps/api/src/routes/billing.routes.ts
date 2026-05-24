@@ -14,4 +14,5 @@ billingRouter.post('/billing/cancel', authenticate, asyncHandler(billingControll
 billingRouter.post('/billing/resume', authenticate, asyncHandler(billingController.resumeSubscription));
 billingRouter.post('/billing/dunning/enforce', authenticate, asyncHandler(billingController.enforceDunning));
 billingRouter.post('/billing/webhooks/retry/:billingEventId', authenticate, asyncHandler(billingController.retryWebhook));
+billingRouter.post('/billing/cron/enforce', asyncHandler(billingController.cronEnforceDunning));
 billingRouter.post('/billing/webhook', express.raw({ type: 'application/json' }), asyncHandler(billingController.webhook));

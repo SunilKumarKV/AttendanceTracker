@@ -58,8 +58,9 @@ const envSchema = z.object({
   COOKIE_SAMESITE: z.preprocess(emptyToUndefined, z.enum(['lax', 'strict', 'none']).default(isProduction ? 'none' : 'lax')),
   COOKIE_SECURE: z.preprocess((value) => toBoolean(emptyToUndefined(value)), z.boolean().default(isProduction)),
   RAZORPAY_KEY_ID: z.preprocess(emptyToUndefined, z.string().optional().default('')),
-RAZORPAY_KEY_SECRET: z.preprocess(emptyToUndefined, z.string().optional().default('')),
-RAZORPAY_WEBHOOK_SECRET: z.preprocess(emptyToUndefined, z.string().optional().default('')),
+  RAZORPAY_KEY_SECRET: z.preprocess(emptyToUndefined, z.string().optional().default('')),
+  RAZORPAY_WEBHOOK_SECRET: z.preprocess(emptyToUndefined, z.string().optional().default('')),
+  BILLING_CRON_SECRET: z.preprocess(emptyToUndefined, z.string().optional().default('')),
 });
 
 const parsed = envSchema.safeParse({
@@ -79,6 +80,7 @@ const values = parsed.data;
 
 export const env = {
   analyticsWriteKey: values.ANALYTICS_WRITE_KEY,
+  billingCronSecret: values.BILLING_CRON_SECRET,
   clientUrl: values.CLIENT_URL,
   corsOrigins: values.CORS_ORIGINS ? values.CORS_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean) : [],
   databaseUrl: values.DATABASE_URL,
