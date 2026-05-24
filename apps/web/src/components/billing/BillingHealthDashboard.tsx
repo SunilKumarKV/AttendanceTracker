@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, RefreshCw, ShieldCheck, WalletCards } from 'lucide-react';
+import { AlertTriangle, LockKeyhole, RefreshCw, ShieldCheck, WalletCards } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   enforceBillingDunning,
@@ -9,6 +9,7 @@ import {
   type BillingEvent,
   type BillingHealth,
 } from '../../api/billing';
+import { ApiClientError } from '../../api/client';
 
 const StatCard = ({ title, value }: { title: string; value: number }) => (
   <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -17,14 +18,20 @@ const StatCard = ({ title, value }: { title: string; value: number }) => (
   </div>
 );
 
+const isAccessError = (error: unknown) => (
+  error instanceof ApiClientError && [401, 403].includes(error.status ?? 0)
+);
+
 export const BillingHealthDashboard: React.FC = () => {
   const [health, setHealth] = useState<BillingHealth | null>(null);
   const [failedWebhooks, setFailedWebhooks] = useState<BillingEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [accessError, setAccessError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
+    setAccessError(null);
     try {
       const [healthResponse, failedResponse] = await Promise.all([
         getBillingHealth(),
@@ -34,6 +41,13 @@ export const BillingHealthDashboard: React.FC = () => {
       setHealth(healthResponse.data);
       setFailedWebhooks(failedResponse.data);
     } catch (error) {
+      if (isAccessError(error)) {
+        setAccessError(error instanceof Error ? error.message : 'Super Admin access required');
+        setHealth(null);
+        setFailedWebhooks([]);
+        return;
+      }
+
       toast.error(error instanceof Error ? error.message : 'Unable to load billing health');
     } finally {
       setLoading(false);
@@ -76,6 +90,22 @@ export const BillingHealthDashboard: React.FC = () => {
     return (
       <div className="rounded-3xl border border-slate-100 bg-white p-8 text-center font-bold text-slate-500 dark:border-slate-800 dark:bg-slate-900">
         Loading billing health...
+      </div>
+    );
+  }
+
+  if (accessError) {
+    return (
+      <div className="rounded-3xl border border-amber-100 bg-amber-50 p-8 text-center shadow-sm dark:border-amber-900/50 dark:bg-amber-950/30">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-200">
+          <LockKeyhole size={28} />
+        </div>
+        <p className="text-sm font-black uppercase tracking-wider text-amber-700 dark:text-amber-200">Super Admin Only</p>
+        <h1 className="mt-2 text-2xl font-black text-slate-900 dark:text-white">Billing Health Access Required</h1>
+        <p className="mx-auto mt-3 max-w-xl text-sm font-bold text-slate-600 dark:text-slate-300">
+          This page is only available for Super Admin accounts. Login with a Super Admin account to view failed webhooks, billing health, and dunning enforcement.
+        </p>
+        <p className="mt-3 text-xs font-bold text-amber-700 dark:text-amber-200">{accessError}</p>
       </div>
     );
   }
