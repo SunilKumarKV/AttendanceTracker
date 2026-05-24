@@ -2,38 +2,48 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Check, Crown, Loader2, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 import {
+  cancelBillingSubscription,
   createBillingCheckout,
+  getBillingInvoices,
   getBillingPlans,
   getCurrentBilling,
+  type BillingInvoice,
   type BillingPlan,
   type CurrentBilling,
 } from '../../api/billing';
 
 const formatPrice = (amount: number) => amount === 0 ? 'Custom / Trial' : new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount / 100);
 const usagePercent = (used: number, total: number) => total <= 0 ? 0 : Math.min(100, Math.round((used / total) * 100));
+const formatDate = (value?: string | null) => value ? new Date(value).toLocaleDateString() : '-';
 
 export const BillingDashboard: React.FC = () => {
   const [plans, setPlans] = useState<BillingPlan[]>([]);
   const [current, setCurrent] = useState<CurrentBilling | null>(null);
+  const [invoices, setInvoices] = useState<BillingInvoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [checkoutPlan, setCheckoutPlan] = useState<string | null>(null);
-  const [invoices, setInvoices] = useState<BillingInvoice[]>([]);
-const [billingActionLoading, setBillingActionLoading] = useState(false);
+  const [billingActionLoading, setBillingActionLoading] = useState(false);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       try {
-        const [plansResponse, currentResponse] = await Promise.all([
-  getBillingPlans(),
-  getCurrentBilling(),
-  getBillingInvoices(),
-])
-        setPlans(plansResponse.data);
-        setCurrent(currentResponse.data);
-        setInvoices(invoicesResponse.data);
+        const [plansResponse, currentResponse, invoicesResponse] = await Promise.all([
+          getBillingPlans(),
+          getCurrentBilling(),
+          getBillingInvoices(),
+        ]);
+        setPlans(plansResponse.data ?? []);
+        setCurrent(currentResponse.data ?? null);
+        setInvoices(invoicesResponse.data ?? []);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Unable to load billing data');
+        try {
+          const plansResponse = await getBillingPlans();
+          setPlans(plansResponse.data ?? []);
+        } catch {
+          setPlans([]);
+        }
       } finally {
         setLoading(false);
       }
@@ -41,7 +51,7 @@ const [billingActionLoading, setBillingActionLoading] = useState(false);
     void load();
   }, []);
 
-  const currentPlan = useMemo(() => plans.find((plan) => plan.code === current?.institution.subscriptionPlan), [plans, current]);
+  const currentPlan = useMemo(() => plans.find((plan) => plan.code === current?.institution?.subscriptionPlan), [plans, current]);
 
   const handleCheckout = async (plan: BillingPlan) => {
     if (plan.code === 'FREE_TRIAL') {
@@ -65,24 +75,28 @@ const [billingActionLoading, setBillingActionLoading] = useState(false);
   };
 
   const handleCancelSubscription = async () => {
-  if (!window.confirm('Cancel subscription at period end?')) return;
+    if (!current?.institution?.razorpaySubscriptionId) {
+      toast.info('No active Razorpay subscription found');
+      return;
+    }
+    if (!window.confirm('Cancel subscription at period end?')) return;
 
-  setBillingActionLoading(true);
+    setBillingActionLoading(true);
+    try {
+      await cancelBillingSubscription();
+      toast.success('Subscription cancellation requested');
+      const currentResponse = await getCurrentBilling();
+      setCurrent(currentResponse.data ?? null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to cancel');
+    } finally {
+      setBillingActionLoading(false);
+    }
+  };
 
-  try {
-    await cancelBillingSubscription();
-    toast.success('Subscription cancellation requested');
-    window.location.reload();
-  } catch (error) {
-    toast.error(error instanceof Error ? error.message : 'Unable to cancel');
-  } finally {
-    setBillingActionLoading(false);
-  }
-};
-
-const handleResumeSubscription = async () => {
-  toast.info('Please purchase again to resume subscription');
-};
+  const handleResumeSubscription = async () => {
+    toast.info('Please purchase again to resume subscription');
+  };
 
   if (loading) {
     return (
@@ -100,40 +114,32 @@ const handleResumeSubscription = async () => {
         <p className="mt-2 max-w-3xl text-sm font-medium text-slate-500 dark:text-slate-400">Review current subscription usage and compare upgrade plans.</p>
       </div>
 
-      <div className="flex gap-3 mt-4">
-  {current.institution.cancelAtPeriodEnd ? (
-    <button
-      onClick={handleResumeSubscription}
-      className="rounded-xl bg-emerald-600 px-4 py-2 text-white font-bold"
-    >
-      Resume
-    </button>
-  ) : (
-    <button
-      onClick={handleCancelSubscription}
-      disabled={billingActionLoading}
-      className="rounded-xl bg-red-600 px-4 py-2 text-white font-bold disabled:opacity-60"
-    >
-      Cancel Subscription
-    </button>
-  )}
-</div>
-
-      {current && (
+      {current?.institution ? (
         <div className="grid gap-4 lg:grid-cols-4">
           <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:col-span-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
                 <div className="flex flex-wrap items-center gap-3">
                   <h2 className="text-2xl font-black text-slate-900 dark:text-white">{current.institution.name}</h2>
                   <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">{current.institution.subscriptionPlan}</span>
                   <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">{current.institution.subscriptionStatus}</span>
+                  {current.institution.cancelAtPeriodEnd && <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-black text-red-700 dark:bg-red-950/40 dark:text-red-300">Cancelling</span>}
                 </div>
                 <p className="mt-2 text-sm font-bold text-slate-500">Institution code: {current.institution.code}</p>
+                <p className="mt-1 text-sm font-bold text-slate-500">Period: {formatDate(current.institution.currentPeriodStart)} - {formatDate(current.institution.currentPeriodEnd)}</p>
               </div>
-              <div className="flex items-center gap-2 rounded-2xl bg-violet-50 px-4 py-3 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">
-                <Crown size={18} />
-                <span className="font-black">{currentPlan?.name ?? current.institution.subscriptionPlan}</span>
+              <div className="flex flex-col gap-3 md:items-end">
+                <div className="flex items-center gap-2 rounded-2xl bg-violet-50 px-4 py-3 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">
+                  <Crown size={18} />
+                  <span className="font-black">{currentPlan?.name ?? current.institution.subscriptionPlan}</span>
+                </div>
+                {current.institution.cancelAtPeriodEnd ? (
+                  <button onClick={handleResumeSubscription} className="rounded-xl bg-emerald-600 px-4 py-2 font-bold text-white">Resume</button>
+                ) : (
+                  <button onClick={handleCancelSubscription} disabled={billingActionLoading || !current.institution.razorpaySubscriptionId} className="rounded-xl bg-red-600 px-4 py-2 font-bold text-white disabled:opacity-50">
+                    {billingActionLoading ? 'Cancelling...' : 'Cancel Subscription'}
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -155,6 +161,10 @@ const handleResumeSubscription = async () => {
             </div>
           ))}
         </div>
+      ) : (
+        <div className="rounded-3xl border border-amber-100 bg-amber-50 p-5 text-sm font-bold text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+          Billing details are not available for this account. Use an institution admin account to view current subscription usage.
+        </div>
       )}
 
       <section>
@@ -173,61 +183,37 @@ const handleResumeSubscription = async () => {
                   </div>
                 ))}
               </div>
-              <button
-                onClick={() => void handleCheckout(plan)}
-                disabled={checkoutPlan === plan.code}
-                className="mt-6 w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-black text-white disabled:opacity-60 dark:bg-white dark:text-slate-900"
-              >
+              <button onClick={() => void handleCheckout(plan)} disabled={checkoutPlan === plan.code || !current?.institution} className="mt-6 w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-black text-white disabled:opacity-60 dark:bg-white dark:text-slate-900">
                 {checkoutPlan === plan.code ? 'Starting checkout...' : plan.code === 'FREE_TRIAL' ? 'Current Trial' : 'Upgrade Now'}
               </button>
             </div>
           ))}
         </div>
       </section>
+
       <section>
-  <h2 className="mb-4 text-2xl font-black">Billing History</h2>
-
-  <div className="overflow-x-auto rounded-3xl border border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-900">
-    <table className="w-full text-sm">
-      <thead>
-        <tr>
-          <th>Invoice</th>
-          <th>Amount</th>
-          <th>Status</th>
-          <th>Date</th>
-          <th>PDF</th>
-        </tr>
-      </thead>
-
-      <tbody>
-        {invoices.map((invoice) => (
-          <tr key={invoice.id}>
-            <td>{invoice.providerInvoiceId}</td>
-            <td>₹{(invoice.amount / 100).toLocaleString()}</td>
-            <td>{invoice.status}</td>
-            <td>
-              {invoice.paidAt
-                ? new Date(invoice.paidAt).toLocaleDateString()
-                : '-'}
-            </td>
-            <td>
-              {invoice.pdfUrl ? (
-                <a
-                  href={invoice.pdfUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-blue-600 font-bold"
-                >
-                  Download
-                </a>
-              ) : '-'}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-</section>
+        <h2 className="mb-4 text-2xl font-black text-slate-900 dark:text-white">Billing History</h2>
+        <div className="overflow-x-auto rounded-3xl border border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-900">
+          <table className="w-full min-w-[720px] text-left text-sm">
+            <thead className="bg-slate-50 text-xs uppercase text-slate-500 dark:bg-slate-950">
+              <tr><th className="p-4">Invoice</th><th className="p-4">Amount</th><th className="p-4">Status</th><th className="p-4">Date</th><th className="p-4">PDF</th></tr>
+            </thead>
+            <tbody>
+              {invoices.length ? invoices.map((invoice) => (
+                <tr key={invoice.id} className="border-t border-slate-100 dark:border-slate-800">
+                  <td className="p-4 font-bold text-slate-700 dark:text-slate-200">{invoice.providerInvoiceId ?? invoice.id}</td>
+                  <td className="p-4 font-bold text-slate-700 dark:text-slate-200">₹{(invoice.amount / 100).toLocaleString()}</td>
+                  <td className="p-4 font-bold text-slate-700 dark:text-slate-200">{invoice.status}</td>
+                  <td className="p-4 font-bold text-slate-700 dark:text-slate-200">{formatDate(invoice.paidAt ?? invoice.createdAt)}</td>
+                  <td className="p-4">{invoice.pdfUrl ? <a href={invoice.pdfUrl} target="_blank" rel="noreferrer" className="font-bold text-blue-600">Download</a> : '-'}</td>
+                </tr>
+              )) : (
+                <tr><td colSpan={5} className="p-8 text-center text-sm font-bold text-slate-500">No invoices found.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 };
