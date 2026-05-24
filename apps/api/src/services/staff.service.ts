@@ -1,4 +1,4 @@
-import { Prisma, RequestStatus, Role } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { StatusCodes } from 'http-status-codes';
 import { prisma } from '../config/prisma.js';
@@ -12,7 +12,6 @@ export interface Context {
   role?: Role;
 }
 
-const STAFF_STATUSES = new Set(['PRESENT', 'ABSENT', 'LATE', 'LEAVE']);
 const DEFAULT_PASSWORD = 'ChangeMe@123';
 
 const requireInstitution = (context: Context) => {
@@ -27,15 +26,6 @@ const requireUser = (context: Context) => {
     throw new AppError('Authentication required.', StatusCodes.UNAUTHORIZED);
   }
   return context.userId;
-};
-
-const normalizeDay = (value: string | Date) => {
-  const date = value instanceof Date ? new Date(value) : new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    throw new AppError('Invalid date.', StatusCodes.BAD_REQUEST);
-  }
-  date.setHours(0, 0, 0, 0);
-  return date;
 };
 
 const sanitizeStaffRole = (role?: string) => {
@@ -148,79 +138,24 @@ export const deleteStaff = async (context: Context, id: string) => {
   await writeAuditLog({ actorId, institutionId, action: 'STAFF_DELETED', entityType: 'StaffProfile', entityId: id }).catch(() => undefined);
 };
 
-export const markStaffAttendance = async (context: Context, body: any) => {
-  const institutionId = requireInstitution(context);
-  const actorId = requireUser(context);
-  const staffId = String(body.staffId ?? '');
-  const status = String(body.status ?? '').toUpperCase();
-  if (!STAFF_STATUSES.has(status)) throw new AppError('Invalid staff attendance status.', StatusCodes.BAD_REQUEST);
-  const attendanceDate = normalizeDay(body.attendanceDate ?? new Date());
-  const staff = await prisma.staffProfile.findFirst({ where: { id: staffId, institutionId, isActive: true } });
-  if (!staff) throw new AppError('Staff member not found.', StatusCodes.NOT_FOUND);
-  const data = await prisma.staffAttendance.upsert({
-    where: { institutionId_staffId_attendanceDate: { institutionId, staffId, attendanceDate } },
-    update: { status, remarks: body.remarks?.trim?.() || null, markedById: actorId },
-    create: { institutionId, staffId, markedById: actorId, attendanceDate, status, remarks: body.remarks?.trim?.() || null },
-  });
-  await writeAuditLog({ actorId, institutionId, action: 'STAFF_ATTENDANCE_MARKED', entityType: 'StaffAttendance', entityId: data.id, metadata: { staffId, status } }).catch(() => undefined);
-  return data;
+export const markStaffAttendance = async () => {
+  throw new AppError('Staff attendance module is not enabled in this schema.', StatusCodes.NOT_IMPLEMENTED);
 };
 
-export const listStaffAttendance = async (context: Context, query: Record<string, unknown> = {}) => {
-  const institutionId = requireInstitution(context);
-  const page = Math.max(Number(query.page ?? 1), 1);
-  const pageSize = Math.min(Math.max(Number(query.pageSize ?? 20), 1), 100);
-  const [items, total] = await prisma.$transaction([
-    prisma.staffAttendance.findMany({
-      where: { institutionId },
-      include: { staff: { include: { user: { select: { id: true, name: true, email: true } } } } },
-      orderBy: [{ attendanceDate: 'desc' }, { createdAt: 'desc' }],
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    }),
-    prisma.staffAttendance.count({ where: { institutionId } }),
-  ]);
-  return { items, pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) } };
+export const listStaffAttendance = async () => {
+  return { items: [], pagination: { page: 1, pageSize: 20, total: 0, totalPages: 0 } };
 };
 
-export const createStaffLeave = async (context: Context, body: any) => {
-  const institutionId = requireInstitution(context);
-  const actorId = requireUser(context);
-  const staffId = String(body.staffId ?? '');
-  const fromDate = normalizeDay(body.fromDate);
-  const toDate = normalizeDay(body.toDate);
-  if (toDate < fromDate) throw new AppError('To date must be after from date.', StatusCodes.BAD_REQUEST);
-  const staff = await prisma.staffProfile.findFirst({ where: { id: staffId, institutionId, isActive: true } });
-  if (!staff) throw new AppError('Staff member not found.', StatusCodes.NOT_FOUND);
-  const data = await prisma.staffLeaveRequest.create({
-    data: { institutionId, staffId, requestedById: actorId, fromDate, toDate, reason: body.reason, status: RequestStatus.PENDING },
-    include: { staff: { include: { user: { select: { name: true, email: true } } } } },
-  });
-  await writeAuditLog({ actorId, institutionId, action: 'STAFF_LEAVE_CREATED', entityType: 'StaffLeaveRequest', entityId: data.id }).catch(() => undefined);
-  return data;
+export const createStaffLeave = async () => {
+  throw new AppError('Staff leave module is not enabled in this schema.', StatusCodes.NOT_IMPLEMENTED);
 };
 
-export const updateStaffLeaveStatus = async (context: Context, id: string, status: RequestStatus) => {
-  const institutionId = requireInstitution(context);
-  const actorId = requireUser(context);
-  const data = await prisma.staffLeaveRequest.update({ where: { id }, data: { status } });
-  if (status === RequestStatus.APPROVED) {
-    let attendanceDate = normalizeDay(data.fromDate);
-    const end = normalizeDay(data.toDate);
-    await prisma.$transaction(async (tx) => {
-      while (attendanceDate <= end) {
-        await tx.staffAttendance.upsert({
-          where: { institutionId_staffId_attendanceDate: { institutionId, staffId: data.staffId, attendanceDate } },
-          update: { status: 'LEAVE', remarks: data.reason, markedById: actorId },
-          create: { institutionId, staffId: data.staffId, attendanceDate, status: 'LEAVE', remarks: data.reason, markedById: actorId },
-        });
-        attendanceDate = new Date(attendanceDate);
-        attendanceDate.setDate(attendanceDate.getDate() + 1);
-      }
-    });
-  }
-  await writeAuditLog({ actorId, institutionId, action: 'STAFF_LEAVE_UPDATED', entityType: 'StaffLeaveRequest', entityId: id, metadata: { status } }).catch(() => undefined);
-  return data;
+export const listStaffLeaves = async () => {
+  return { items: [], pagination: { page: 1, pageSize: 20, total: 0, totalPages: 0 } };
+};
+
+export const reviewStaffLeave = async () => {
+  throw new AppError('Staff leave review module is not enabled in this schema.', StatusCodes.NOT_IMPLEMENTED);
 };
 
 export const getStaffSelfProfile = async (context: Context) => {
@@ -232,9 +167,30 @@ export const getStaffSelfProfile = async (context: Context) => {
 
 export const getStaffSelfDashboard = async (context: Context) => {
   const staff = await getStaffSelfProfile(context);
-  const [attendanceTotal, leaves] = await Promise.all([
-    prisma.staffAttendance.count({ where: { staffId: staff.id } }),
-    prisma.staffLeaveRequest.findMany({ where: { staffId: staff.id }, orderBy: { createdAt: 'desc' }, take: 10 }),
-  ]);
-  return { staff, summary: { attendanceTotal, leaveRequests: leaves.length }, recentLeaves: leaves };
+  return { staff, summary: { attendanceTotal: 0, leaveRequests: 0 }, recentLeaves: [] };
+};
+
+export const getStaffDashboard = async (context: Context) => getStaffSelfDashboard(context);
+
+export const getAdminStaffSummary = async (context: Context) => {
+  const institutionId = requireInstitution(context);
+  const totalStaff = await prisma.staffProfile.count({ where: { institutionId, isActive: true } });
+  return { totalStaff, presentToday: 0, absentToday: 0, pendingLeaves: 0 };
+};
+
+export const exportStaffReportRows = async (context: Context) => {
+  const institutionId = requireInstitution(context);
+  const staff = await prisma.staffProfile.findMany({
+    where: { institutionId, isActive: true },
+    include: { user: { select: { name: true, email: true } } },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return staff.map((item) => ({
+    date: new Date().toISOString().slice(0, 10),
+    employeeCode: item.employeeCode,
+    name: item.user?.name ?? '',
+    email: item.user?.email ?? '',
+    status: 'N/A',
+  }));
 };
