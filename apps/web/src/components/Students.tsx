@@ -71,7 +71,6 @@ export const Students: React.FC = () => {
 
     toast.error(err instanceof Error ? err.message : fallback);
   };
-  const navigate = useNavigate();
 
   const fetchStudents = useCallback(async (search = debouncedSearch, nextPage = page) => {
     setLoading(true);
