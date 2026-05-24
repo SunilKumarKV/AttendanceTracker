@@ -80,6 +80,21 @@ const assertBillingAdmin = (context: BillingContext) => {
   }
 };
 
+const safeErrorMessage = (error: unknown) => error instanceof Error ? error.message : 'Unknown webhook processing error';
+
+const recordWebhookEvent = async (payload: any, eventType: string, providerEventId: string | undefined, institutionId: string | null, processed: boolean, metadata: Record<string, unknown>) => {
+  await prisma.billingEvent.create({
+    data: {
+      institutionId,
+      provider: 'razorpay',
+      eventType,
+      providerEventId,
+      payload: { ...payload, _processing: metadata } as Prisma.InputJsonValue,
+      processedAt: processed ? new Date() : null,
+    },
+  });
+};
+
 const syncInstitutionSubscription = async (payload: any, eventType: string, institutionId: string | null) => {
   if (!institutionId) return false;
   const subscription = extractSubscription(payload);
@@ -335,27 +350,31 @@ export const handleWebhook = async (rawBody: string, signature?: string) => {
     }
   }
 
-  const synced = await syncInstitutionSubscription(payload, eventType, institutionId);
-  const invoiceSynced = await syncBillingInvoice(payload, eventType, institutionId);
+  try {
+    const synced = await syncInstitutionSubscription(payload, eventType, institutionId);
+    const invoiceSynced = await syncBillingInvoice(payload, eventType, institutionId);
 
-  await prisma.billingEvent.create({
-    data: {
+    await recordWebhookEvent(payload, eventType, providerEventId, institutionId, true, { status: 'PROCESSED', synced, invoiceSynced });
+
+    await writeAuditLog({
       institutionId,
-      provider: 'razorpay',
-      eventType,
-      providerEventId,
-      payload: payload as Prisma.InputJsonValue,
-      processedAt: new Date(),
-    },
-  });
+      action: 'BILLING_WEBHOOK_RECEIVED',
+      entityType: 'BillingEvent',
+      entityId: providerEventId,
+      metadata: { eventType, synced, invoiceSynced, status: 'PROCESSED' },
+    }).catch(() => undefined);
 
-  await writeAuditLog({
-    institutionId,
-    action: 'BILLING_WEBHOOK_RECEIVED',
-    entityType: 'BillingEvent',
-    entityId: providerEventId,
-    metadata: { eventType, synced, invoiceSynced },
-  }).catch(() => undefined);
-
-  return { received: true, duplicate: false, eventType, synced, invoiceSynced };
+    return { received: true, duplicate: false, eventType, synced, invoiceSynced, status: 'PROCESSED' };
+  } catch (error) {
+    const errorMessage = safeErrorMessage(error);
+    await recordWebhookEvent(payload, eventType, providerEventId, institutionId, false, { status: 'FAILED', error: errorMessage });
+    await writeAuditLog({
+      institutionId,
+      action: 'BILLING_WEBHOOK_FAILED',
+      entityType: 'BillingEvent',
+      entityId: providerEventId,
+      metadata: { eventType, error: errorMessage, status: 'FAILED' },
+    }).catch(() => undefined);
+    throw error;
+  }
 };
