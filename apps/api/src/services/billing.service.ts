@@ -316,29 +316,8 @@ export const cancelSubscription = async (context: BillingContext) => {
 };
 
 export const resumeSubscription = async (context: BillingContext) => {
-  const institutionId = context.institutionId;
-  if (!institutionId) throw new AppError('Institution context is required', StatusCodes.BAD_REQUEST);
   assertBillingAdmin(context);
-
-  const institution = await prisma.institution.findUnique({ where: { id: institutionId } });
-  if (!institution) throw new AppError('Institution not found', StatusCodes.NOT_FOUND);
-  if (!institution.razorpaySubscriptionId) throw new AppError('No Razorpay subscription found', StatusCodes.BAD_REQUEST);
-
-  const updated = await prisma.institution.update({
-    where: { id: institutionId },
-    data: { cancelAtPeriodEnd: false, subscriptionStatus: SubscriptionStatus.ACTIVE, isActive: true },
-  });
-
-  await writeAuditLog({
-    actorId: context.userId,
-    institutionId,
-    action: 'BILLING_SUBSCRIPTION_RESUMED',
-    entityType: 'Institution',
-    entityId: institutionId,
-    metadata: { razorpaySubscriptionId: institution.razorpaySubscriptionId },
-  }).catch(() => undefined);
-
-  return updated;
+  throw new AppError('To resume, create a new checkout subscription.', StatusCodes.BAD_REQUEST);
 };
 
 export const handleWebhook = async (rawBody: string, signature?: string) => {
