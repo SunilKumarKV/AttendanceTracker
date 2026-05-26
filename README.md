@@ -1,59 +1,132 @@
-# AttendanceTracker SaaS Monorepo
+# AttendanceTracker
 
-AttendanceTracker is a PNPM/Turbo monorepo containing the React web app, Express API, shared packages, Prisma schema, migrations, and production documentation.
+Production-ready attendance management platform built with a scalable PNPM monorepo architecture.
 
-## Structure
+## Overview
+
+AttendanceTracker is designed as a modern institute attendance management system for students, teachers, administrators, reporting workflows, and production deployment.
+
+This repository uses a production-focused monorepo architecture with shared packages, Prisma database management, CI validation, and deployment documentation.
+
+## Core Features
+
+- Student attendance tracking
+- Teacher/admin management workflows
+- Role-based application architecture
+- Shared frontend/backend TypeScript packages
+- PostgreSQL + Prisma database layer
+- PNPM monorepo architecture
+- CI validation pipeline
+- Production deployment documentation
+- Scalable package separation for long-term maintenance
+
+## Architecture
 
 ```txt
 apps/web        React + Vite frontend
 apps/api        Node.js + Express backend
-packages/shared Shared TypeScript constants/types
-packages/ui     Safe reusable UI package scaffold
-packages/config Shared TS/config base files
-prisma          Prisma schema, migrations, seed scripts
-docs            Architecture, deployment, API, security docs
-scripts         Local setup helper scripts
+packages/shared Shared types/constants
+packages/ui     Reusable UI components
+packages/config Shared config
+prisma          Schema, migrations, seed
+scripts         Setup helpers
+docs            Architecture / API / Security / Deployment
 ```
 
-## Requirements
+## Tech Stack
 
-- Node.js 20 LTS or 22 LTS
-- PNPM 10.x via Corepack
+### Frontend
+- React
+- Vite
+- TypeScript
+
+### Backend
+- Node.js
+- Express
+- TypeScript
+
+### Database
+- PostgreSQL
+- Prisma ORM
+
+### Tooling
+- PNPM
+- GitHub Actions
+- ESLint
+- Turbo
+
+## Local Setup
+
+### Requirements
+- Node.js 20+
+- PNPM 10+
 - PostgreSQL 14+
 
-## Setup
+### Install
 
 ```bash
 corepack enable
 corepack prepare pnpm@10.15.0 --activate
 pnpm install
 cp .env.example .env
+```
+
+### Database
+
+```bash
+pnpm prisma validate
 pnpm prisma generate
 pnpm prisma migrate dev
 pnpm prisma db seed
+```
+
+### Run Development
+
+```bash
 pnpm dev
 ```
 
 Web: http://localhost:3000  
 API: http://localhost:5001/api
 
-## Main Commands
+## Validation Commands
 
 ```bash
-pnpm dev
-pnpm build
 pnpm lint
 pnpm type-check
-pnpm prisma generate
-pnpm prisma validate
-pnpm prisma migrate dev
-pnpm prisma db seed
+pnpm build
 ```
 
-## Deployment
+## Production Engineering Standards
 
-See `docs/deployment.md`.
+This repository includes:
+
+- Pull request template
+- Bug report template
+- Feature request template
+- Security policy
+- Contribution guide
+- MIT license
+- CI pipeline
+- Production documentation
+
+## Documentation
+
+See:
+
+- docs/architecture.md
+- docs/deployment.md
+- docs/api.md
+- docs/security.md
+
+## Contribution
+
+Please review CONTRIBUTING.md before contributing.
 
 ## Security
 
-See `docs/security.md`.
+Please review SECURITY.md for responsible disclosure.
+
+## License
+
+MIT
